@@ -5,11 +5,11 @@ import { useRef, useState } from 'react';
 export default function Dashboard({ auth }) {
     const resourcesRef = useRef(null);
     const modulesRef = useRef(null);
-    const guestFormRef = useRef(null);
+    const formRef = useRef(null); // Renomeado de guestFormRef para formRef
 
     const [showAccessModal, setShowAccessModal] = useState(false);
     const [selectedModule, setSelectedModule] = useState(null);
-    const [isGuestMode, setIsGuestMode] = useState(false);
+    const [showForm, setShowForm] = useState(false); // Renomeado de isGuestMode
 
     const scrollToResources = () => {
         resourcesRef.current?.scrollIntoView({
@@ -27,7 +27,21 @@ export default function Dashboard({ auth }) {
 
     const handleModuleClick = (moduleName) => {
         setSelectedModule(moduleName);
-        setShowAccessModal(true);
+
+        // Verifica se o usuário está logado
+        if (auth.user) {
+            // Se estiver logado, pula o modal e mostra o formulário diretamente
+            setShowForm(true);
+            setTimeout(() => {
+                formRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                });
+            }, 150);
+        } else {
+            // Se não estiver logado, exibe o modal de escolha
+            setShowAccessModal(true);
+        }
     };
 
     const handleLoginRedirect = () => {
@@ -35,11 +49,11 @@ export default function Dashboard({ auth }) {
     };
 
     const handleContinueWithoutLogin = () => {
-        setIsGuestMode(true);
         setShowAccessModal(false);
+        setShowForm(true);
 
         setTimeout(() => {
-            guestFormRef.current?.scrollIntoView({
+            formRef.current?.scrollIntoView({
                 behavior: 'smooth',
                 block: 'start',
             });
@@ -275,18 +289,20 @@ export default function Dashboard({ auth }) {
                     </div>
                 </section>
 
-                {isGuestMode && (
+                {showForm && (
                     <section
-                        ref={guestFormRef}
+                        ref={formRef}
                         className="bg-[#faf7f3] px-10 py-16"
                     >
                         <div className="mx-auto max-w-[78rem]">
                             <div className="rounded-xl border border-[#d6bfa8] bg-white p-8 shadow-md">
+                            {!auth.user && (
                                 <div className="rounded-lg bg-[#fff3cd] px-5 py-4 text-[#7a4b00]">
                                     Você está usando o sistema sem login. O
                                     problema poderá ser resolvido, mas não será
                                     salvo em “Meus projetos”.
                                 </div>
+                            )}
 
                                 <h2 className="mt-8 font-inter text-[2rem] font-black text-[#653018]">
                                     Inserir dados do problema

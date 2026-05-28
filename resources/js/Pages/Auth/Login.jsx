@@ -119,7 +119,8 @@ export default function Login({ status, canResetPassword }) {
                             Login
                         </button>
 
-                        <button
+                        <a
+                            href="/auth/google/redirect"
                             type="button"
                             className="mt-[1.25rem] flex h-[3.125rem] w-full items-center justify-center gap-3 rounded-lg bg-[#dec8b2] text-lg font-bold text-black transition hover:bg-[#d4bca3]"
                         >
@@ -130,7 +131,7 @@ export default function Login({ status, canResetPassword }) {
                             />
 
                             Continue com o Google
-                        </button>
+                        </a>
 
                         <div className="mt-[1rem] pb-1 text-center text-base text-gray-500">
                             Ainda não tem uma conta?{' '}

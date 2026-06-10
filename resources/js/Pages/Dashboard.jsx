@@ -1,47 +1,44 @@
 import Header from '@/Components/Header';
+import Footer from '@/Components/Footer';
 import { Head, router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
 export default function Dashboard({ auth }) {
     const resourcesRef = useRef(null);
     const modulesRef = useRef(null);
-    const formRef = useRef(null); // Renomeado de guestFormRef para formRef
-
     const [showAccessModal, setShowAccessModal] = useState(false);
-    const [selectedModule, setSelectedModule] = useState(null);
-    const [showForm, setShowForm] = useState(false); // Renomeado de isGuestMode
+    const [selectedModuleRoute, setSelectedModuleRoute] = useState(null);
+
+    const scrollToSection = (ref) => {
+        if (!ref.current) return;
+
+        const headerOffset = 140;
+        const elementPosition = ref.current.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.scrollY - headerOffset;
+
+        window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth',
+        });
+    };
 
     const scrollToResources = () => {
-        resourcesRef.current?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start',
-        });
+        scrollToSection(resourcesRef);
     };
 
     const scrollToModules = () => {
-        modulesRef.current?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start',
-        });
+        scrollToSection(modulesRef);
     };
 
-    const handleModuleClick = (moduleName) => {
-        setSelectedModule(moduleName);
+    const handleModuleClick = (routeName) => {
+        setSelectedModuleRoute(routeName);
 
-        // Verifica se o usuário está logado
-        if (auth.user) {
-            // Se estiver logado, pula o modal e mostra o formulário diretamente
-            setShowForm(true);
-            setTimeout(() => {
-                formRef.current?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                });
-            }, 150);
-        } else {
-            // Se não estiver logado, exibe o modal de escolha
-            setShowAccessModal(true);
+        if (auth?.user) {
+            router.visit(route(routeName));
+            return;
         }
+
+        setShowAccessModal(true);
     };
 
     const handleLoginRedirect = () => {
@@ -50,14 +47,10 @@ export default function Dashboard({ auth }) {
 
     const handleContinueWithoutLogin = () => {
         setShowAccessModal(false);
-        setShowForm(true);
 
-        setTimeout(() => {
-            formRef.current?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start',
-            });
-        }, 150);
+        if (selectedModuleRoute) {
+            router.visit(route(selectedModuleRoute));
+        }
     };
 
     return (
@@ -250,11 +243,8 @@ export default function Dashboard({ auth }) {
                                         'Escalonamento',
                                         'Matrizes',
                                     ]}
-                                    onClick={() =>
-                                        handleModuleClick('equacao-linear')
-                                    }
+                                    onClick={() => handleModuleClick('linear-systems')}
                                 />
-
                                 <ModuleButton
                                     icon="/images/chart-line.png"
                                     title="PROGRAMAÇÃO LINEAR"
@@ -287,49 +277,9 @@ export default function Dashboard({ auth }) {
                             </div>
                         </div>
                     </div>
+
                 </section>
-
-                {showForm && (
-                    <section
-                        ref={formRef}
-                        className="bg-[#faf7f3] px-10 py-16"
-                    >
-                        <div className="mx-auto max-w-[78rem]">
-                            <div className="rounded-xl border border-[#d6bfa8] bg-white p-8 shadow-md">
-                            {!auth.user && (
-                                <div className="rounded-lg bg-[#fff3cd] px-5 py-4 text-[#7a4b00]">
-                                    Você está usando o sistema sem login. O
-                                    problema poderá ser resolvido, mas não será
-                                    salvo em “Meus projetos”.
-                                </div>
-                            )}
-
-                                <h2 className="mt-8 font-inter text-[2rem] font-black text-[#653018]">
-                                    Inserir dados do problema
-                                </h2>
-
-                                <p className="mt-3 text-lg text-[#333333]">
-                                    Módulo selecionado:{' '}
-                                    <span className="font-bold text-[#653018]">
-                                        {formatModuleName(selectedModule)}
-                                    </span>
-                                </p>
-
-                                <div className="mt-8 rounded-lg border border-dashed border-[#b38563] bg-[#faf7f3] p-8 text-center text-lg text-[#653018]">
-                                    Área reservada para o formulário do módulo
-                                    selecionado.
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                <footer
-                    className="h-[5rem] bg-cover bg-center bg-no-repeat"
-                    style={{
-                        backgroundImage: "url('/images/wood-background.png')",
-                    }}
-                />
+                <Footer />
 
                 {showAccessModal && (
                     <AccessChoiceModal
@@ -338,7 +288,7 @@ export default function Dashboard({ auth }) {
                         onContinue={handleContinueWithoutLogin}
                     />
                 )}
-            </main>
+            </main >
         </>
     );
 }

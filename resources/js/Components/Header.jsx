@@ -19,9 +19,25 @@ export default function Header({
             : `${baseClass} text-[#653018]`;
     };
 
+    const handleGoToStart = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth',
+        });
+    };
+
+    const handleGoToNewProblem = () => {
+        if (onScrollToModules) {
+            onScrollToModules();
+            return;
+        }
+
+        window.location.href = '/';
+    };
+
     return (
         <header
-            className="h-[7.5rem] bg-cover bg-center bg-no-repeat"
+            className="sticky top-0 z-50 h-[7.5rem] bg-cover bg-center bg-no-repeat"
             style={{
                 backgroundImage: "url('/images/wood-background.png')",
             }}
@@ -40,13 +56,8 @@ export default function Header({
                         <li>
                             <button
                                 type="button"
-                                onClick={() =>
-                                    window.scrollTo({
-                                        top: 0,
-                                        behavior: 'smooth',
-                                    })
-                                }
-                                className="rounded-full bg-[#eadccb] px-4 py-1.5 font-semibold text-[#653018] transition hover:bg-[#eadccb]"
+                                onClick={handleGoToStart}
+                                className={getMenuClass('inicio')}
                             >
                                 Início
                             </button>
@@ -55,16 +66,20 @@ export default function Header({
                         <li>
                             <button
                                 type="button"
-                                onClick={onScrollToResources}
-                                className={getMenuClass('recursos')}
+                                onClick={handleGoToNewProblem}
+                                className={getMenuClass('novo-problema')}
                             >
-                                Recursos
+                                Novo Problema
                             </button>
                         </li>
 
                         <li>
                             <Link
-                                href={isLoggedIn ? route('dashboard') : route('login')}
+                                href={
+                                    isLoggedIn
+                                        ? route('dashboard')
+                                        : route('login')
+                                }
                                 className={getMenuClass('projetos')}
                             >
                                 Meus projetos

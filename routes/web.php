@@ -19,3 +19,8 @@ Route::prefix('project')->group(function() {
 });
 
 require __DIR__.'/auth.php';
+
+Route::get('/linear-systems', function () {
+    return Inertia::render('LinearSystems');
+})->name('linear-systems');
+

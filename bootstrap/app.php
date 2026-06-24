@@ -21,7 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->validateCsrfTokens(except: [
             'project',
-            'project/*'
+            'project/*',
+            'linear-systems',
+            'linear-systems/*'
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

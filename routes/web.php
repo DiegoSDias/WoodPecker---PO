@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Project\LinearSystemController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -24,3 +25,5 @@ Route::get('/linear-systems', function () {
     return Inertia::render('LinearSystems');
 })->name('linear-systems');
 
+Route::post('/linear-systems/solve', [LinearSystemController::class, 'solve']
+);

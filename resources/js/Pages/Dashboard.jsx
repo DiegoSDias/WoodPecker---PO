@@ -1,11 +1,12 @@
-import Header from '@/Components/Header';
 import Footer from '@/Components/Footer';
+import Header from '@/Components/Header';
 import { Head, router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
 export default function Dashboard({ auth }) {
     const resourcesRef = useRef(null);
     const modulesRef = useRef(null);
+
     const [showAccessModal, setShowAccessModal] = useState(false);
     const [selectedModuleRoute, setSelectedModuleRoute] = useState(null);
 
@@ -243,76 +244,89 @@ export default function Dashboard({ auth }) {
                                         'Escalonamento',
                                         'Matrizes',
                                     ]}
-                                    onClick={() => handleModuleClick('linear-systems')}
-                                />
-                                <ModuleButton
-                                    icon="/images/chart-line.png"
-                                    title="PROGRAMAÇÃO LINEAR"
-                                    items={[
-                                        'Simplex',
-                                        'Região Viável',
-                                        'Análise de Sensibilidade',
-                                    ]}
+                                    isSelected={
+                                        selectedModuleRoute ===
+                                        'linear-systems'
+                                    }
                                     onClick={() =>
-                                        handleModuleClick(
-                                            'programacao-linear'
-                                        )
+                                        handleModuleClick('linear-systems')
                                     }
                                 />
 
                                 <ModuleButton
-                                    icon="/images/chart-bar.png"
-                                    title="PROGRAMAÇÃO INTEIRA"
+                                    icon="/images/chart-line.png"
+                                    title="PROGRAMAÇÃO LINEAR/INTEIRA"
                                     items={[
+                                        'Simplex',
                                         'Branch and Bound',
-                                        'Restrições Inteiras',
                                         'Soluções Otimizadas',
                                     ]}
+                                    isSelected={
+                                        selectedModuleRoute ===
+                                        'mathematical-modeling'
+                                    }
                                     onClick={() =>
                                         handleModuleClick(
-                                            'programacao-inteira'
+                                            'mathematical-modeling'
                                         )
                                     }
                                 />
                             </div>
                         </div>
                     </div>
-
                 </section>
+
                 <Footer />
 
                 {showAccessModal && (
                     <AccessChoiceModal
-                        onClose={() => setShowAccessModal(false)}
+                        onClose={() => {
+                            setShowAccessModal(false);
+                            setSelectedModuleRoute(null);
+                        }}
                         onLogin={handleLoginRedirect}
                         onContinue={handleContinueWithoutLogin}
                     />
                 )}
-            </main >
+            </main>
         </>
     );
 }
 
-function ModuleButton({ icon, title, items, onClick }) {
+function ModuleButton({ icon, title, items, onClick, isSelected = false }) {
     return (
         <button
             type="button"
             onClick={onClick}
-            className="grid w-full grid-cols-[1fr_1.2fr] overflow-hidden rounded-xl bg-[#eadccb] text-left shadow-md transition hover:scale-[1.01]"
+            className={`grid w-full grid-cols-[1fr_1.2fr] overflow-hidden rounded-xl text-left shadow-md transition hover:scale-[1.01] ${
+                isSelected
+                    ? 'bg-[#733615] text-white ring-4 ring-[#d6bfa8]'
+                    : 'bg-[#eadccb] text-[#2b211b]'
+            }`}
         >
-            <div className="flex items-center gap-10 px-12 py-6">
+            <div
+                className={`flex items-center gap-10 px-12 py-6 ${
+                    isSelected ? 'text-white' : 'text-[#653018]'
+                }`}
+            >
                 <img
                     src={icon}
                     alt=""
-                    className="h-12 w-12 object-contain"
+                    className={`h-12 w-12 object-contain ${
+                        isSelected ? 'brightness-0 invert' : ''
+                    }`}
                 />
 
-                <strong className="text-2xl font-black text-[#653018]">
-                    {title}
-                </strong>
+                <strong className="text-2xl font-black">{title}</strong>
             </div>
 
-            <div className="border-l border-[#b38563] px-12 py-5 text-lg text-[#333333]">
+            <div
+                className={`border-l px-12 py-5 text-lg ${
+                    isSelected
+                        ? 'border-[#d6bfa8] text-white'
+                        : 'border-[#b38563] text-[#333333]'
+                }`}
+            >
                 <ul className="list-disc space-y-2">
                     {items.map((item) => (
                         <li key={item}>{item}</li>
@@ -367,14 +381,4 @@ function AccessChoiceModal({ onClose, onLogin, onContinue }) {
             </div>
         </div>
     );
-}
-
-function formatModuleName(moduleName) {
-    const modules = {
-        'equacao-linear': 'Equação Linear',
-        'programacao-linear': 'Programação Linear',
-        'programacao-inteira': 'Programação Inteira',
-    };
-
-    return modules[moduleName] || 'Não informado';
 }

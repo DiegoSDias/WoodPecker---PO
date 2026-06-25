@@ -10,6 +10,8 @@ export default function LinearSystems({ auth }) {
     const [matrixA, setMatrixA] = useState(createMatrix(3));
     const [vectorB, setVectorB] = useState(createVector(3));
     const [result, setResult] = useState(null);
+    const [message, setMessage] = useState('');
+    const [isCalculating, setIsCalculating] = useState(false);
 
     function updateVariables(newSize) {
         if (newSize < 2 || newSize > 5) return;
@@ -18,6 +20,7 @@ export default function LinearSystems({ auth }) {
         setMatrixA((currentMatrix) => resizeMatrix(currentMatrix, newSize));
         setVectorB((currentVector) => resizeVector(currentVector, newSize));
         setResult(null);
+        setMessage('');
     }
 
     function handleMatrixChange(rowIndex, colIndex, value) {
@@ -25,7 +28,7 @@ export default function LinearSystems({ auth }) {
             currentMatrix.map((row, currentRowIndex) =>
                 row.map((cell, currentColIndex) =>
                     currentRowIndex === rowIndex &&
-                        currentColIndex === colIndex
+                    currentColIndex === colIndex
                         ? value
                         : cell
                 )
@@ -33,6 +36,7 @@ export default function LinearSystems({ auth }) {
         );
 
         setResult(null);
+        setMessage('');
     }
 
     function handleVectorChange(index, value) {
@@ -43,30 +47,45 @@ export default function LinearSystems({ auth }) {
         );
 
         setResult(null);
+        setMessage('');
     }
 
     function clearFields() {
         setMatrixA(createMatrix(variables));
         setVectorB(createVector(variables));
         setResult(null);
+        setMessage('');
     }
 
-    function calculateSolution() {
-        const coefficients = matrixA.map((row) =>
-            row.map((value) => parseInputNumber(value))
-        );
+    async function calculateSolution() {
+        setIsCalculating(true);
+        setResult(null);
+        setMessage('');
 
-        const terms = vectorB.map((value) => parseInputNumber(value));
+        try {
+            const payload = {
+                matrix_a: matrixA.map((row) =>
+                    row.map((value) => parseInputNumber(value))
+                ),
+                vector_b: vectorB.map((value) => parseInputNumber(value)),
+            };
 
-        const solution = solveLinearSystem(coefficients, terms);
+            const response = await window.axios.post(
+                '/linear-systems/solve',
+                payload
+            );
 
-        setResult(solution);
-    }
+            const backendResult = response.data?.data;
 
-    function saveProject() {
-        // Futuramente o Diego pode integrar essa função com o backend.
-        // Por enquanto, deixamos o botão pronto visualmente.
-        alert('Funcionalidade de salvar projeto será integrada ao backend.');
+            setResult(backendResult);
+            setMessage(
+                response.data?.message || 'Sistema linear resolvido com sucesso.'
+            );
+        } catch (error) {
+            setMessage(getErrorMessage(error));
+        } finally {
+            setIsCalculating(false);
+        }
     }
 
     return (
@@ -142,6 +161,12 @@ export default function LinearSystems({ auth }) {
                                 Você está usando o sistema sem login. É possível
                                 calcular a solução, mas o projeto não será salvo
                                 em “Meus projetos”.
+                            </div>
+                        )}
+
+                        {message && (
+                            <div className="mt-6 rounded-lg bg-[#fff3cd] px-5 py-4 text-sm font-semibold text-[#7a4b00]">
+                                {message}
                             </div>
                         )}
 
@@ -225,8 +250,9 @@ export default function LinearSystems({ auth }) {
                                                     type="number"
                                                     step="any"
                                                     value={cell}
-                                                    placeholder={`b${index + 1
-                                                        }`}
+                                                    placeholder={`b${
+                                                        index + 1
+                                                    }`}
                                                     onChange={(event) =>
                                                         handleVectorChange(
                                                             index,
@@ -263,25 +289,20 @@ export default function LinearSystems({ auth }) {
                             <button
                                 type="button"
                                 onClick={calculateSolution}
-                                className="flex items-center gap-3 rounded-xl bg-[#a77b5f] px-8 py-3 font-inter text-xl font-black text-white shadow-md transition hover:bg-[#8d6349]"
+                                disabled={isCalculating}
+                                className="flex items-center gap-3 rounded-xl bg-[#a77b5f] px-8 py-3 font-inter text-xl font-black text-white shadow-md transition hover:bg-[#8d6349] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <img
                                     src="/images/calculator.png"
                                     alt=""
                                     className="h-6 w-6 object-contain"
                                 />
-                                Calcular solução
+                                {isCalculating
+                                    ? 'Calculando...'
+                                    : result?.type === 'unique'
+                                      ? 'Calcular resultado'
+                                      : 'Calcular solução'}
                             </button>
-
-                            {isLoggedIn && (
-                                <button
-                                    type="button"
-                                    onClick={saveProject}
-                                    className="flex items-center gap-3 rounded-xl bg-[#733615] px-8 py-3 font-inter text-xl font-black text-white shadow-md transition hover:bg-[#5b2a10]"
-                                >
-                                    Salvar projeto
-                                </button>
-                            )}
                         </div>
                     </div>
                 </section>
@@ -317,29 +338,29 @@ function ResultCard({ result, variables }) {
                 )}
 
                 {result?.type === 'unique' && (
-                    <div className="flex h-full flex-col justify-between">
-                        <div className="space-y-10">
-                            {result.solution.map((value, index) => (
+                    <div className="space-y-10">
+                        {Object.entries(result.solution || {}).map(
+                            ([variable, value]) => (
                                 <div
-                                    key={index}
+                                    key={variable}
                                     className="flex items-center justify-center gap-4 font-montserrat text-xl font-bold text-[#653018]"
                                 >
                                     <span className="rounded-xl bg-[#a77b5f] px-5 py-3 text-white">
-                                        x{index + 1}
+                                        {variable}
                                     </span>
                                     <span>=</span>
                                     <span>{formatNumber(value)}</span>
                                 </div>
-                            ))}
-                        </div>
+                            )
+                        )}
                     </div>
                 )}
 
-                {result?.type === 'no_solution' && (
+                {result?.type === 'inconsistent' && (
                     <p className="text-center font-montserrat text-base font-semibold leading-relaxed text-[#777777]">
                         Sistema impossível.
                         <br />
-                        Não existe solução única.
+                        Não existe solução.
                     </p>
                 )}
 
@@ -390,110 +411,38 @@ function parseInputNumber(value) {
     return Number.isNaN(number) ? 0 : number;
 }
 
-function solveLinearSystem(matrixA, vectorB) {
-    const size = matrixA.length;
-    const epsilon = 1e-10;
-
-    const augmentedMatrix = matrixA.map((row, rowIndex) => [
-        ...row.map((value) => Number(value)),
-        Number(vectorB[rowIndex]),
-    ]);
-
-    let pivotRow = 0;
-
-    for (let col = 0; col < size && pivotRow < size; col++) {
-        let bestRow = pivotRow;
-
-        for (let row = pivotRow + 1; row < size; row++) {
-            if (
-                Math.abs(augmentedMatrix[row][col]) >
-                Math.abs(augmentedMatrix[bestRow][col])
-            ) {
-                bestRow = row;
-            }
-        }
-
-        if (Math.abs(augmentedMatrix[bestRow][col]) < epsilon) {
-            continue;
-        }
-
-        if (bestRow !== pivotRow) {
-            const temporaryRow = augmentedMatrix[pivotRow];
-            augmentedMatrix[pivotRow] = augmentedMatrix[bestRow];
-            augmentedMatrix[bestRow] = temporaryRow;
-        }
-
-        const pivotValue = augmentedMatrix[pivotRow][col];
-
-        for (let j = col; j <= size; j++) {
-            augmentedMatrix[pivotRow][j] =
-                augmentedMatrix[pivotRow][j] / pivotValue;
-        }
-
-        for (let row = 0; row < size; row++) {
-            if (row === pivotRow) continue;
-
-            const factor = augmentedMatrix[row][col];
-
-            for (let j = col; j <= size; j++) {
-                augmentedMatrix[row][j] =
-                    augmentedMatrix[row][j] -
-                    factor * augmentedMatrix[pivotRow][j];
-            }
-        }
-
-        pivotRow++;
-    }
-
-    for (let row = 0; row < size; row++) {
-        const allCoefficientsAreZero = augmentedMatrix[row]
-            .slice(0, size)
-            .every((value) => Math.abs(value) < epsilon);
-
-        const independentTermIsNotZero =
-            Math.abs(augmentedMatrix[row][size]) >= epsilon;
-
-        if (allCoefficientsAreZero && independentTermIsNotZero) {
-            return {
-                type: 'no_solution',
-            };
-        }
-    }
-
-    const rank = augmentedMatrix.filter((row) =>
-        row.slice(0, size).some((value) => Math.abs(value) >= epsilon)
-    ).length;
-
-    if (rank < size) {
-        return {
-            type: 'infinite',
-        };
-    }
-
-    const solution = Array(size).fill(0);
-
-    for (let row = 0; row < size; row++) {
-        const pivotColumn = augmentedMatrix[row]
-            .slice(0, size)
-            .findIndex((value) => Math.abs(value) >= epsilon);
-
-        if (pivotColumn !== -1) {
-            solution[pivotColumn] = augmentedMatrix[row][size];
-        }
-    }
-
-    return {
-        type: 'unique',
-        solution,
-    };
-}
-
 function formatNumber(value) {
-    const roundedValue = Number(value.toFixed(4));
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+        return value;
+    }
+
+    const roundedValue = Number(number.toFixed(4));
 
     if (Object.is(roundedValue, -0)) {
         return '0';
     }
 
     return roundedValue.toString();
+}
+
+function getErrorMessage(error) {
+    const validationErrors = error.response?.data?.errors;
+
+    if (validationErrors) {
+        const firstError = Object.values(validationErrors)[0];
+
+        if (Array.isArray(firstError)) {
+            return firstError[0];
+        }
+
+        return String(firstError);
+    }
+
+    return (
+        error.response?.data?.message ||
+        error.response?.data?.error?.detalhe ||
+        'Não foi possível resolver o sistema linear.'
+    );
 }

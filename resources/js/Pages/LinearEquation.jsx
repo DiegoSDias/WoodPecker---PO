@@ -90,7 +90,7 @@ export default function LinearSystems({ auth }) {
 
     return (
         <>
-            <Head title="Sistemas Lineares" />
+            <Head title="Equação Linear" />
 
             <main className="min-h-screen bg-white font-montserrat text-[#2b211b]">
                 <Header auth={auth} activePage="novo-problema" />
@@ -117,7 +117,7 @@ export default function LinearSystems({ auth }) {
                                 </div>
 
                                 <h1 className="font-inter text-[2.2rem] font-black text-[#653018]">
-                                    Sistemas Lineares
+                                    Equação Linear
                                 </h1>
                             </div>
 
@@ -443,6 +443,6 @@ function getErrorMessage(error) {
     return (
         error.response?.data?.message ||
         error.response?.data?.error?.detalhe ||
-        'Não foi possível resolver o sistema linear.'
+        'Não foi possível resolver a equação linear.'
     );
 }

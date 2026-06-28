@@ -10,14 +10,14 @@ Route::get('/', function () {
 })->name('dashboard');
 
 Route::get('/linear-systems', function () {
-    return Inertia::render('LinearSystems');
+    return Inertia::render('LinearEquation');
 })->name('linear-systems');
 
 Route::post('/linear-systems/solve', [LinearSystemController::class, 'solve'])
     ->name('linear-systems.solve');
 
 Route::get('/mathematical-modeling', function () {
-    return Inertia::render('MathematicalModeling');
+    return Inertia::render('LinearIntegerProgramming');
 })->name('mathematical-modeling');
 
 Route::get('/project-results/{project}', function ($project) {

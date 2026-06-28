@@ -213,7 +213,7 @@ export default function MathematicalModeling({ auth }) {
 
             if (!createdProjectId) {
                 setMessage(
-                    'Projeto criado, mas o ID não foi encontrado no retorno do backend.'
+                    'Projeto criado, mas o ID não foi encontrado no retorno.'
                 );
                 return null;
             }
@@ -261,7 +261,7 @@ export default function MathematicalModeling({ auth }) {
 
     return (
         <>
-            <Head title="Modelagem Matemática" />
+            <Head title="Programação Linear/Inteira" />
 
             <main className="min-h-screen bg-white font-montserrat text-[#2b211b]">
                 <Header auth={auth} activePage="novo-problema" />
@@ -288,7 +288,7 @@ export default function MathematicalModeling({ auth }) {
                                 </div>
 
                                 <h1 className="font-inter text-[2.2rem] font-black text-[#653018]">
-                                    Modelagem Matemática
+                                    Programação Linear/Inteira
                                 </h1>
                             </div>
 
@@ -357,7 +357,7 @@ export default function MathematicalModeling({ auth }) {
                     {result && (
                         <div className="mt-6 rounded-xl border border-[#d6bfa8] bg-[#faf7f3] p-5">
                             <h2 className="font-inter text-xl font-black text-[#653018]">
-                                Retorno do backend
+                                Resultado do cálculo
                             </h2>
 
                             <pre className="mt-4 max-h-[22rem] overflow-auto rounded-lg bg-white p-4 text-sm text-[#333333] shadow-inner">

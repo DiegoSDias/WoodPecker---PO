@@ -1,13 +1,17 @@
 import Footer from '@/Components/Footer';
 import Header from '@/Components/Header';
 import { Head, router } from '@inertiajs/react';
+import axios from 'axios';
 import { useMemo, useState } from 'react';
 
-export default function MyProjects({ auth, projects = [] }) {
-    const [searchTerm, setSearchTerm] = useState('');
+export default function MyProjects({ auth, projects: initialProjects = [] }) {
+    const [projects, setProjects] = useState(normalizeProjects(initialProjects));
+    const [search, setSearch] = useState('');
+    const [deletingProjectId, setDeletingProjectId] = useState(null);
+    const [message, setMessage] = useState('');
 
     const filteredProjects = useMemo(() => {
-        const normalizedSearch = searchTerm.trim().toLowerCase();
+        const normalizedSearch = search.trim().toLowerCase();
 
         if (!normalizedSearch) {
             return projects;
@@ -22,18 +26,50 @@ export default function MyProjects({ auth, projects = [] }) {
                 description.includes(normalizedSearch)
             );
         });
-    }, [projects, searchTerm]);
-
-    function handleViewProject(projectId) {
-        router.visit(route('projects.me.show', projectId));
-    }
-
-    function handleDeleteProject(projectId) {
-        router.delete(route('projects.me.destroy', projectId));
-    }
+    }, [projects, search]);
 
     function handleBack() {
         router.visit(route('dashboard'));
+    }
+
+    function handleView(project) {
+        router.visit(route('project-results.show', project.id));
+    }
+
+    function handleEdit(project) {
+        router.visit(route('projects.me.edit', project.id));
+    }
+
+    async function handleDelete(project) {
+        const confirmed = window.confirm(
+            `Deseja excluir o projeto "${project.title}"?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setDeletingProjectId(project.id);
+            setMessage('');
+
+            await axios.delete(`/projects/me/${project.id}`);
+
+            setProjects((currentProjects) =>
+                currentProjects.filter(
+                    (currentProject) => currentProject.id !== project.id
+                )
+            );
+
+            setMessage('Projeto excluído com sucesso.');
+        } catch (error) {
+            setMessage(
+                error?.response?.data?.message ||
+                    'Não foi possível excluir o projeto.'
+            );
+        } finally {
+            setDeletingProjectId(null);
+        }
     }
 
     return (
@@ -43,154 +79,142 @@ export default function MyProjects({ auth, projects = [] }) {
             <main className="min-h-screen bg-white font-montserrat text-[#2b211b]">
                 <Header auth={auth} activePage="meus-projetos" />
 
-                <section className="bg-white px-10 py-8">
-                    <div className="mx-auto max-w-[78rem]">
-                        <button
-                            type="button"
-                            onClick={handleBack}
-                            className="mb-10 text-4xl font-light text-[#653018] transition hover:-translate-x-1"
-                            aria-label="Voltar"
-                        >
-                            ←
-                        </button>
+                <section className="mx-auto min-h-[calc(100vh-12.5rem)] max-w-[78rem] px-10 py-8">
+                    <button
+                        type="button"
+                        onClick={handleBack}
+                        className="mb-8 text-4xl font-light text-[#653018] transition hover:-translate-x-1"
+                        aria-label="Voltar"
+                    >
+                        ←
+                    </button>
 
-                        <div className="flex items-center gap-6">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#733615]">
-                                <img
-                                    src="/images/folder-outline.png"
-                                    alt=""
-                                    className="h-10 w-10 object-contain"
-                                />
-                            </div>
-
-                            <h1 className="font-inter text-[2.6rem] font-black text-[#653018]">
-                                Meus Projetos
-                            </h1>
+                    <div className="flex items-center gap-6">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#733615]">
+                            <img
+                                src="/images/folder-outline.png"
+                                alt=""
+                                className="h-9 w-9 object-contain"
+                            />
                         </div>
 
-                        <p className="mt-8 max-w-[62rem] font-montserrat text-xl leading-relaxed text-[#777777]">
-                            Gerencie seus projetos criados, visualize suas
-                            informações e retome a edição sempre que necessário.
-                        </p>
-
-                        <div className="mt-8 flex justify-end">
-                            <div className="flex w-full max-w-[18rem] items-center gap-3 rounded-md bg-[#fffaf4] px-4 py-2 shadow-sm">
-                                <img
-                                    src="/images/search-outline.png"
-                                    alt=""
-                                    className="h-5 w-5 object-contain"
-                                />
-
-                                <input
-                                    type="text"
-                                    value={searchTerm}
-                                    onChange={(event) =>
-                                        setSearchTerm(event.target.value)
-                                    }
-                                    placeholder="Pesquisar projeto..."
-                                    className="w-full bg-transparent font-montserrat text-sm text-[#653018] outline-none placeholder:text-[#b8b0aa]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-md">
-                            <table className="w-full table-fixed text-center">
-                                <thead className="bg-[#eadccb] font-inter text-xl font-black text-[#653018]">
-                                    <tr>
-                                        <th className="w-[22%] px-5 py-5">
-                                            Nome do projeto
-                                        </th>
-                                        <th className="w-[30%] px-5 py-5">
-                                            Descrição
-                                        </th>
-                                        <th className="w-[20%] px-5 py-5">
-                                            Data de criação
-                                        </th>
-                                        <th className="w-[20%] px-5 py-5">
-                                            Última edição
-                                        </th>
-                                        <th className="w-[8%] px-5 py-5">
-                                            Ações
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    {filteredProjects.length === 0 && (
-                                        <tr>
-                                            <td
-                                                colSpan="5"
-                                                className="px-6 py-20 text-center font-montserrat text-base text-[#2b211b]"
-                                            >
-                                                {projects.length === 0
-                                                    ? 'Você ainda não possui projetos cadastrados.'
-                                                    : 'Nenhum projeto encontrado para a pesquisa informada.'}
-                                            </td>
-                                        </tr>
-                                    )}
-
-                                    {filteredProjects.map((project) => (
-                                        <tr
-                                            key={project.id}
-                                            className="border-t border-[#d7c7ba] bg-[#fffdfb]"
-                                        >
-                                            <td className="px-5 py-7 font-montserrat text-base font-bold text-[#111111]">
-                                                {project.title || 'Sem nome'}
-                                            </td>
-
-                                            <td className="px-5 py-7 font-montserrat text-base leading-relaxed text-[#2b211b]">
-                                                {formatDescription(
-                                                    project.description
-                                                )}
-                                            </td>
-
-                                            <td className="px-5 py-7 font-montserrat text-base text-[#2b211b]">
-                                                {formatDateTime(
-                                                    project.created_at
-                                                )}
-                                            </td>
-
-                                            <td className="px-5 py-7 font-montserrat text-base text-[#2b211b]">
-                                                {formatDateTime(
-                                                    project.updated_at
-                                                )}
-                                            </td>
-
-                                            <td className="px-5 py-7">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <ActionButton
-                                                        icon="/images/eye-empty.png"
-                                                        label="Visualizar projeto"
-                                                        onClick={() =>
-                                                            handleViewProject(
-                                                                project.id
-                                                            )
-                                                        }
-                                                    />
-
-                                                    <ActionButton
-                                                        icon="/images/pencil.png"
-                                                        label="Editar projeto"
-                                                        disabled
-                                                    />
-
-                                                    <ActionButton
-                                                        icon="/images/trash-outline.png"
-                                                        label="Excluir projeto"
-                                                        onClick={() =>
-                                                            handleDeleteProject(
-                                                                project.id
-                                                            )
-                                                        }
-                                                    />
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <h1 className="font-inter text-[2.2rem] font-black text-[#653018]">
+                            Meus Projetos
+                        </h1>
                     </div>
+
+                    <p className="mt-6 max-w-[58rem] text-lg leading-relaxed text-[#777777]">
+                        Gerencie seus projetos criados, visualize suas
+                        informações e retome a edição sempre que necessário.
+                    </p>
+
+                    {message && (
+                        <div className="mt-6 rounded-xl bg-[#fff3cd] px-5 py-4 text-sm font-semibold text-[#7a4b00]">
+                            {message}
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end">
+                        <label className="relative block w-full max-w-[16rem]">
+                            <img
+                                src="/images/search-outline.png"
+                                alt=""
+                                className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 object-contain"
+                            />
+
+                            <input
+                                type="text"
+                                value={search}
+                                placeholder="Pesquisar projeto..."
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                className="h-10 w-full rounded-md border border-[#e5d7c8] bg-[#fffaf4] pl-10 pr-4 text-sm text-[#653018] shadow-sm outline-none transition placeholder:text-[#a8a8a8] focus:ring-2 focus:ring-[#733615]"
+                            />
+                        </label>
+                    </div>
+
+                    <section className="mt-5 overflow-hidden rounded-xl bg-white shadow-md">
+                        <div className="grid grid-cols-[1.2fr_1.6fr_1fr_1fr_10rem] bg-[#eadccb] px-8 py-4 text-center font-inter text-lg font-black text-[#653018]">
+                            <div>Nome do projeto</div>
+                            <div>Descrição</div>
+                            <div>Data de criação</div>
+                            <div>Última edição</div>
+                            <div>Ações</div>
+                        </div>
+
+                        {filteredProjects.length === 0 ? (
+                            <div className="flex min-h-[10rem] items-center justify-center px-8 py-12 text-center text-base text-[#333333]">
+                                {search.trim()
+                                    ? 'Nenhum projeto encontrado para a pesquisa.'
+                                    : 'Você ainda não possui projetos cadastrados.'}
+                            </div>
+                        ) : (
+                            <div>
+                                {filteredProjects.map((project) => (
+                                    <div
+                                        key={project.id}
+                                        className="grid grid-cols-[1.2fr_1.6fr_1fr_1fr_10rem] items-center border-t border-[#d6bfa8] px-8 py-5 text-center"
+                                    >
+                                        <div className="font-montserrat text-base font-bold text-[#111111]">
+                                            {project.title || 'Sem título'}
+                                        </div>
+
+                                        <div className="px-4 text-sm leading-relaxed text-[#333333]">
+                                            {truncateText(
+                                                project.description ||
+                                                    'Sem descrição',
+                                                80
+                                            )}
+                                        </div>
+
+                                        <div className="text-sm leading-relaxed text-[#333333]">
+                                            {formatDate(project.created_at)}
+                                        </div>
+
+                                        <div className="text-sm leading-relaxed text-[#333333]">
+                                            {formatDate(project.updated_at)}
+                                        </div>
+
+                                        <div className="flex items-center justify-center gap-2">
+                                            <ActionButton
+                                                icon="/images/eye-empty.png"
+                                                label="Visualizar"
+                                                onClick={() =>
+                                                    handleView(project)
+                                                }
+                                            />
+
+                                            <ActionButton
+                                                icon="/images/pencil.png"
+                                                label="Editar"
+                                                onClick={() =>
+                                                    handleEdit(project)
+                                                }
+                                            />
+
+                                            <ActionButton
+                                                icon="/images/trash-outline.png"
+                                                label={
+                                                    deletingProjectId ===
+                                                    project.id
+                                                        ? 'Excluindo'
+                                                        : 'Excluir'
+                                                }
+                                                disabled={
+                                                    deletingProjectId ===
+                                                    project.id
+                                                }
+                                                onClick={() =>
+                                                    handleDelete(project)
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
                 </section>
 
                 <Footer />
@@ -205,32 +229,36 @@ function ActionButton({ icon, label, onClick, disabled = false }) {
             type="button"
             onClick={onClick}
             disabled={disabled}
-            title={disabled ? `${label} indisponível no momento` : label}
-            className={`flex h-8 w-8 items-center justify-center rounded-md bg-[#a77b5f] transition ${
-                disabled
-                    ? 'cursor-not-allowed opacity-60'
-                    : 'hover:scale-105 hover:bg-[#8d6349]'
-            }`}
+            title={label}
             aria-label={label}
+            className="flex h-8 w-8 items-center justify-center rounded-md bg-[#a77b5f] transition hover:bg-[#8d6349] disabled:cursor-not-allowed disabled:opacity-50"
         >
             <img src={icon} alt="" className="h-5 w-5 object-contain" />
         </button>
     );
 }
 
-function formatDescription(description) {
-    if (!description) {
-        return 'Sem descrição';
+function normalizeProjects(projects) {
+    if (Array.isArray(projects)) {
+        return projects;
     }
 
-    if (description.length <= 80) {
-        return description;
+    if (Array.isArray(projects?.data)) {
+        return projects.data;
     }
 
-    return `${description.slice(0, 80)}...`;
+    if (Array.isArray(projects?.projects)) {
+        return projects.projects;
+    }
+
+    if (Array.isArray(projects?.data?.projects)) {
+        return projects.data.projects;
+    }
+
+    return [];
 }
 
-function formatDateTime(value) {
+function formatDate(value) {
     if (!value) {
         return '-';
     }
@@ -241,12 +269,23 @@ function formatDateTime(value) {
         return '-';
     }
 
-    return date.toLocaleString('pt-BR', {
+    return new Intl.DateTimeFormat('pt-BR', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
-    });
+    }).format(date);
+}
+
+function truncateText(text, limit) {
+    if (!text) {
+        return '';
+    }
+
+    if (text.length <= limit) {
+        return text;
+    }
+
+    return `${text.slice(0, limit).trim()}...`;
 }

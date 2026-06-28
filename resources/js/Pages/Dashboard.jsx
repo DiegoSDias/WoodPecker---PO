@@ -43,7 +43,7 @@ export default function Dashboard({ auth }) {
     };
 
     const handleLoginRedirect = () => {
-        router.visit(route('login'));
+        window.location.href = route('login');
     };
 
     const handleContinueWithoutLogin = () => {
@@ -54,6 +54,11 @@ export default function Dashboard({ auth }) {
         }
     };
 
+    const handleCloseModal = () => {
+        setShowAccessModal(false);
+        setSelectedModuleRoute(null);
+    };
+
     return (
         <>
             <Head title="Woodpecker" />
@@ -61,6 +66,7 @@ export default function Dashboard({ auth }) {
             <main className="min-h-screen bg-white font-montserrat text-[#2b211b]">
                 <Header
                     auth={auth}
+                    activePage="inicio"
                     onScrollToResources={scrollToResources}
                     onScrollToModules={scrollToModules}
                 />
@@ -280,10 +286,7 @@ export default function Dashboard({ auth }) {
 
                 {showAccessModal && (
                     <AccessChoiceModal
-                        onClose={() => {
-                            setShowAccessModal(false);
-                            setSelectedModuleRoute(null);
-                        }}
+                        onClose={handleCloseModal}
                         onLogin={handleLoginRedirect}
                         onContinue={handleContinueWithoutLogin}
                     />
@@ -346,6 +349,7 @@ function AccessChoiceModal({ onClose, onLogin, onContinue }) {
                         type="button"
                         onClick={onClose}
                         className="text-2xl font-bold text-gray-500 transition hover:text-[#653018]"
+                        aria-label="Fechar modal"
                     >
                         ×
                     </button>

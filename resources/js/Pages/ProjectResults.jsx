@@ -1,7 +1,7 @@
 import Footer from '@/Components/Footer';
 import Header from '@/Components/Header';
-import GraphicalResult from '@/Components/ProjectResults/GraphicalResult';
 import DualResult from '@/Components/ProjectResults/DualResult';
+import GraphicalResult from '@/Components/ProjectResults/GraphicalResult';
 import IntegerResult from '@/Components/ProjectResults/IntegerResult';
 import OverviewResult from '@/Components/ProjectResults/OverviewResult';
 import ResultsSidebar from '@/Components/ProjectResults/ResultsSidebar';
@@ -87,7 +87,7 @@ export default function ProjectResults({ auth, projectId }) {
             setErrorMessage('');
 
             const [projectResponse, solutionsResponse] = await Promise.all([
-                axios.get(`/projects/${projectId}`),
+                axios.get(`/projects/me/${projectId}`),
                 axios.get(`/projects/${projectId}/solutions`),
             ]);
 
@@ -96,7 +96,7 @@ export default function ProjectResults({ auth, projectId }) {
         } catch (error) {
             setErrorMessage(
                 error?.response?.data?.message ||
-                    'Não foi possível carregar os dados do projeto.'
+                    'Não foi possível carregar as informações do projeto.'
             );
         } finally {
             setIsLoading(false);
@@ -170,7 +170,7 @@ export default function ProjectResults({ auth, projectId }) {
                         {isLoading ? (
                             <EmptyState
                                 title="Carregando projeto..."
-                                description="Aguarde enquanto os dados do projeto são carregados."
+                                description="Aguarde enquanto as informações do projeto são carregadas."
                             />
                         ) : (
                             <ResultContent

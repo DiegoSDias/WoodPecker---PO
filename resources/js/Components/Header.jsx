@@ -12,11 +12,11 @@ export default function Header({ auth, activePage = 'inicio' }) {
     }
 
     function goToSimplex() {
-        router.visit(route('mathematical-modeling'));
+        router.visit(isLoggedIn ? route('mathematical-modeling') : route('login'));
     }
 
     function goToProjects() {
-        router.visit(route('projects.me.index'));
+        router.visit(isLoggedIn ? route('projects.me.index') : route('login'));
     }
 
     return (
@@ -66,17 +66,30 @@ export default function Header({ auth, activePage = 'inicio' }) {
                     />
                 </nav>
 
-                <Link
-                    href={isLoggedIn ? route('profile.edit') : route('login')}
-                    aria-label={isLoggedIn ? 'Abrir perfil' : 'Entrar na conta'}
-                    className="transition hover:scale-105"
-                >
-                    <img
-                        src="/images/person-circle.png"
-                        alt=""
-                        className="h-12 w-12 object-contain"
-                    />
-                </Link>
+                <div className="flex items-center gap-3">
+                    <Link
+                        href={isLoggedIn ? route('profile.edit') : route('login')}
+                        aria-label={isLoggedIn ? 'Abrir perfil' : 'Entrar na conta'}
+                        className="transition hover:scale-105"
+                    >
+                        <img
+                            src="/images/person-circle.png"
+                            alt=""
+                            className="h-12 w-12 object-contain"
+                        />
+                    </Link>
+
+                    {isLoggedIn && (
+                        <Link
+                            href={route('logout')}
+                            method="post"
+                            as="button"
+                            className="rounded-full bg-white px-5 py-2 font-montserrat text-sm font-bold text-[#653018] shadow-md transition hover:bg-[#f4ebe3]"
+                        >
+                            Sair
+                        </Link>
+                    )}
+                </div>
             </div>
         </header>
     );

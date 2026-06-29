@@ -90,7 +90,7 @@ export default function LinearSystems({ auth }) {
 
     return (
         <>
-            <Head title="Equação Linear" />
+            <Head title="Sistemas Lineares" />
 
             <main className="min-h-screen bg-white font-montserrat text-[#2b211b]">
                 <Header auth={auth} activePage="novo-problema" />
@@ -117,7 +117,7 @@ export default function LinearSystems({ auth }) {
                                 </div>
 
                                 <h1 className="font-inter text-[2.2rem] font-black text-[#653018]">
-                                    Equação Linear
+                                    Sistemas Lineares
                                 </h1>
                             </div>
 
@@ -155,14 +155,6 @@ export default function LinearSystems({ auth }) {
                             vetor b para calcular automaticamente a solução do
                             sistema.
                         </p>
-
-                        {!isLoggedIn && (
-                            <div className="mt-6 rounded-lg bg-[#fff3cd] px-5 py-4 text-sm font-medium text-[#7a4b00]">
-                                Você está usando o sistema sem login. É possível
-                                calcular a solução, mas o projeto não será salvo
-                                em “Meus projetos”.
-                            </div>
-                        )}
 
                         {message && (
                             <div className="mt-6 rounded-lg bg-[#fff3cd] px-5 py-4 text-sm font-semibold text-[#7a4b00]">

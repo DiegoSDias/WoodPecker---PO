@@ -8,6 +8,7 @@ export default function MyProjects({ auth, projects: initialProjects = [] }) {
     const [projects, setProjects] = useState(normalizeProjects(initialProjects));
     const [search, setSearch] = useState('');
     const [deletingProjectId, setDeletingProjectId] = useState(null);
+    const [projectToDelete, setProjectToDelete] = useState(null);
     const [message, setMessage] = useState('');
 
     const filteredProjects = useMemo(() => {
@@ -40,27 +41,37 @@ export default function MyProjects({ auth, projects: initialProjects = [] }) {
         router.visit(route('projects.me.edit', project.id));
     }
 
-    async function handleDelete(project) {
-        const confirmed = window.confirm(
-            `Deseja excluir o projeto "${project.title}"?`
-        );
+    function openDeleteProjectModal(project) {
+        setProjectToDelete(project);
+        setMessage('');
+    }
 
-        if (!confirmed) {
+    function closeDeleteProjectModal() {
+        if (deletingProjectId) {
+            return;
+        }
+
+        setProjectToDelete(null);
+    }
+
+    async function confirmDeleteProject() {
+        if (!projectToDelete) {
             return;
         }
 
         try {
-            setDeletingProjectId(project.id);
+            setDeletingProjectId(projectToDelete.id);
             setMessage('');
 
-            await axios.delete(`/projects/me/${project.id}`);
+            await axios.delete(`/projects/me/${projectToDelete.id}`);
 
             setProjects((currentProjects) =>
                 currentProjects.filter(
-                    (currentProject) => currentProject.id !== project.id
+                    (currentProject) => currentProject.id !== projectToDelete.id
                 )
             );
 
+            setProjectToDelete(null);
             setMessage('Projeto excluído com sucesso.');
         } catch (error) {
             setMessage(
@@ -195,18 +206,15 @@ export default function MyProjects({ auth, projects: initialProjects = [] }) {
 
                                             <ActionButton
                                                 icon="/images/trash-outline.png"
-                                                label={
-                                                    deletingProjectId ===
-                                                    project.id
-                                                        ? 'Excluindo'
-                                                        : 'Excluir'
-                                                }
+                                                label="Excluir"
                                                 disabled={
                                                     deletingProjectId ===
                                                     project.id
                                                 }
                                                 onClick={() =>
-                                                    handleDelete(project)
+                                                    openDeleteProjectModal(
+                                                        project
+                                                    )
                                                 }
                                             />
                                         </div>
@@ -218,6 +226,14 @@ export default function MyProjects({ auth, projects: initialProjects = [] }) {
                 </section>
 
                 <Footer />
+
+                {projectToDelete && (
+                    <DeleteProjectModal
+                        processing={deletingProjectId === projectToDelete.id}
+                        onClose={closeDeleteProjectModal}
+                        onConfirm={confirmDeleteProject}
+                    />
+                )}
             </main>
         </>
     );
@@ -235,6 +251,77 @@ function ActionButton({ icon, label, onClick, disabled = false }) {
         >
             <img src={icon} alt="" className="h-5 w-5 object-contain" />
         </button>
+    );
+}
+
+function DeleteProjectModal({ processing, onClose, onConfirm }) {
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 px-4 backdrop-blur-[1px]">
+            <div className="relative w-full max-w-[21rem] rounded-2xl bg-white px-6 py-6 shadow-2xl">
+                <button
+                    type="button"
+                    onClick={onClose}
+                    disabled={processing}
+                    className="absolute right-5 top-4 text-2xl font-light text-[#333333] transition hover:text-[#653018] disabled:cursor-not-allowed"
+                    aria-label="Fechar"
+                >
+                    ×
+                </button>
+
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+                    <TrashIcon className="h-6 w-6 text-red-600" />
+                </div>
+
+                <h2 className="mt-5 font-inter text-lg font-black text-[#202532]">
+                    Deseja deletar o seu projeto?
+                </h2>
+
+                <p className="mt-2 text-sm leading-relaxed text-[#6b7280]">
+                    Depois que seu projeto for excluído, todos os dados e
+                    informações dele serão excluídos permanentemente.
+                </p>
+
+                <div className="mt-6 space-y-3">
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={processing}
+                        className="h-11 w-full rounded-md bg-red-600 font-inter text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {processing ? 'Excluindo...' : 'Excluir'}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={processing}
+                        className="h-11 w-full rounded-md border border-[#d6d6d6] bg-white font-inter text-sm font-black text-[#4b5563] transition hover:bg-gray-50 disabled:cursor-not-allowed"
+                    >
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function TrashIcon({ className = '' }) {
+    return (
+        <svg
+            className={className}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+        </svg>
     );
 }
 

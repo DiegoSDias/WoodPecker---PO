@@ -6,6 +6,8 @@ export default function Header({ auth, activePage = 'inicio' }) {
     const user = pageAuth?.user ?? auth?.user ?? null;
     const isLoggedIn = Boolean(user);
 
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
     const [accessModal, setAccessModal] = useState({
         isOpen: false,
         routeName: null,
@@ -56,7 +58,13 @@ export default function Header({ auth, activePage = 'inicio' }) {
 
     function goToLogin() {
         closeAccessModal();
+        setIsProfileMenuOpen(false);
         router.visit(route('login'));
+    }
+
+    function goToProfile() {
+        setIsProfileMenuOpen(false);
+        router.visit(route('profile.edit'));
     }
 
     function continueWithoutLogin() {
@@ -119,18 +127,13 @@ export default function Header({ auth, activePage = 'inicio' }) {
                         />
                     </nav>
 
-                    <div className="flex items-center gap-3">
-                        <Link
-                            href={
-                                isLoggedIn
-                                    ? route('profile.edit')
-                                    : route('login')
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setIsProfileMenuOpen((isOpen) => !isOpen)
                             }
-                            aria-label={
-                                isLoggedIn
-                                    ? 'Abrir perfil'
-                                    : 'Entrar na conta'
-                            }
+                            aria-label="Abrir menu do perfil"
                             className="transition hover:scale-105"
                         >
                             <img
@@ -138,17 +141,14 @@ export default function Header({ auth, activePage = 'inicio' }) {
                                 alt=""
                                 className="h-12 w-12 object-contain"
                             />
-                        </Link>
+                        </button>
 
-                        {isLoggedIn && (
-                            <Link
-                                href={route('logout')}
-                                method="post"
-                                as="button"
-                                className="rounded-full bg-white px-5 py-2 font-montserrat text-sm font-bold text-[#653018] shadow-md transition hover:bg-[#f4ebe3]"
-                            >
-                                Sair
-                            </Link>
+                        {isProfileMenuOpen && (
+                            <ProfileMenu
+                                isLoggedIn={isLoggedIn}
+                                onLogin={goToLogin}
+                                onProfile={goToProfile}
+                            />
                         )}
                     </div>
                 </div>
@@ -179,6 +179,46 @@ function HeaderButton({ label, active, onClick }) {
         >
             {label}
         </button>
+    );
+}
+
+function ProfileMenu({ isLoggedIn, onLogin, onProfile }) {
+    return (
+        <div className="absolute right-0 top-[3.8rem] z-[95] w-[13rem] overflow-hidden rounded-lg bg-white shadow-xl">
+            {!isLoggedIn && (
+                <button
+                    type="button"
+                    onClick={onLogin}
+                    className="flex w-full items-center gap-3 border-b border-[#d6bfa8] px-5 py-4 text-left font-montserrat text-base font-bold text-[#653018] transition hover:bg-[#fffaf4]"
+                >
+                    <LoginIcon />
+                    Entrar
+                </button>
+            )}
+
+            {isLoggedIn && (
+                <>
+                    <button
+                        type="button"
+                        onClick={onProfile}
+                        className="flex w-full items-center gap-3 border-b border-[#d6bfa8] px-5 py-4 text-left font-montserrat text-base font-bold text-[#653018] transition hover:bg-[#fffaf4]"
+                    >
+                        <ProfileIcon />
+                        Meu perfil
+                    </button>
+
+                    <Link
+                        href={route('logout')}
+                        method="post"
+                        as="button"
+                        className="flex w-full items-center gap-3 px-5 py-4 text-left font-montserrat text-base font-bold text-[#653018] transition hover:bg-[#fffaf4]"
+                    >
+                        <LogoutIcon />
+                        Sair
+                    </Link>
+                </>
+            )}
+        </div>
     );
 }
 
@@ -228,5 +268,61 @@ function AccessChoiceModal({ type, onClose, onLogin, onContinue }) {
                 </div>
             </div>
         </div>
+    );
+}
+
+function LoginIcon() {
+    return (
+        <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H3" />
+        </svg>
+    );
+}
+
+function ProfileIcon() {
+    return (
+        <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M20 21a8 8 0 0 0-16 0" />
+            <circle cx="12" cy="7" r="4" />
+        </svg>
+    );
+}
+
+function LogoutIcon() {
+    return (
+        <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+        </svg>
     );
 }

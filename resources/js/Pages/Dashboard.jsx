@@ -246,7 +246,7 @@ export default function Dashboard({ auth }) {
                             <div className="mx-auto mt-12 max-w-[56rem] space-y-6">
                                 <ModuleButton
                                     icon="/images/chart-dots.png"
-                                    title="EQUAÇÃO LINEAR"
+                                    title="SISTEMAS LINEARES"
                                     items={[
                                         'Gauss-Jordan',
                                         'Escalonamento',

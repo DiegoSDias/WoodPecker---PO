@@ -87,7 +87,7 @@ export default function ProjectResults({ auth, projectId }) {
             setErrorMessage('');
 
             const [projectResponse, solutionsResponse] = await Promise.all([
-                axios.get(`/projects/me/${projectId}`),
+                axios.get(`/projects/${projectId}`),
                 axios.get(`/projects/${projectId}/solutions`),
             ]);
 
@@ -110,12 +110,6 @@ export default function ProjectResults({ auth, projectId }) {
             return;
         }
 
-        const alreadySaved = getLatestSolutionByMethod(solutions, tab.key);
-
-        if (alreadySaved || runtimeResults[tab.key]) {
-            return;
-        }
-
         try {
             setLoadingMethod(tab.key);
             setErrorMessage('');
@@ -128,6 +122,8 @@ export default function ProjectResults({ auth, projectId }) {
                 ...previousResults,
                 [tab.key]: response.data,
             }));
+
+            setActiveTab(tab.key);
 
             const refreshedSolutions = await axios.get(
                 `/projects/${projectId}/solutions`

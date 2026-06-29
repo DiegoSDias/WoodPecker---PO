@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Project\StoreProjectRequest;
 use App\Models\Project;
 use App\Services\Project\ProjectService;
-use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -46,8 +45,11 @@ class MyProjects extends Controller
     public function show(Project $project)
     {
         try {
-            $projectId = $project->id;          
-            return Inertia::render('MathematicalModeling', compact('projectId'));
+            return $this->sendResponse(
+                ['project' => $this->projectService->load($project)],
+                'Projeto carregado com sucesso!',
+                Response::HTTP_OK
+            );
 
         } catch (\Throwable $th) {
             return $this->sendError(
@@ -63,7 +65,9 @@ class MyProjects extends Controller
      */
     public function edit(Project $project)
     {
-        return Inertia::render('MathematicalModeling', compact('project'));
+        return Inertia::render('LinearIntegerProgramming', [
+            'project' => $this->projectService->load($project),
+        ]);
     }
 
     /**

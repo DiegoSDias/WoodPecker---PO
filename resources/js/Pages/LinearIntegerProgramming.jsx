@@ -1,99 +1,98 @@
 import Footer from '@/Components/Footer';
 import Header from '@/Components/Header';
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-export default function MathematicalModeling({ auth }) {
-    const [title, setTitle] = useState('Novo projeto');
-    const [description, setDescription] = useState('');
-    const [optimizationType, setOptimizationType] = useState('max');
+export default function MathematicalModeling({ auth, project = null }) {
+    const initialState = buildInitialProjectState(project);
 
-    const [numVariables, setNumVariables] = useState(2);
-    const [objectiveCoefficients, setObjectiveCoefficients] = useState(
-        createEmptyCoefficients(2)
+    const [title, setTitle] = useState(initialState.title);
+    const [description, setDescription] = useState(initialState.description);
+    const [optimizationType, setOptimizationType] = useState(
+        initialState.optimizationType
     );
-
-    const [constraints, setConstraints] = useState([
-        {
-            coefficients: createEmptyCoefficients(2),
-            operator: '<=',
-            rhs_value: '',
-        },
-        {
-            coefficients: createEmptyCoefficients(2),
-            operator: '<=',
-            rhs_value: '',
-        },
-    ]);
-
-    const [projectId, setProjectId] = useState(null);
+    const [numVariables, setNumVariables] = useState(initialState.numVariables);
+    const [objectiveCoefficients, setObjectiveCoefficients] = useState(
+        initialState.objectiveCoefficients
+    );
+    const [constraints, setConstraints] = useState(initialState.constraints);
+    const [projectId, setProjectId] = useState(initialState.projectId);
     const [isSaving, setIsSaving] = useState(false);
-    const [isSolving, setIsSolving] = useState(false);
     const [message, setMessage] = useState('');
-    const [result, setResult] = useState(null);
 
-    const clearBackendState = () => {
-        setProjectId(null);
-        setResult(null);
+    useEffect(() => {
+        const nextState = buildInitialProjectState(project);
+
+        setTitle(nextState.title);
+        setDescription(nextState.description);
+        setOptimizationType(nextState.optimizationType);
+        setNumVariables(nextState.numVariables);
+        setObjectiveCoefficients(nextState.objectiveCoefficients);
+        setConstraints(nextState.constraints);
+        setProjectId(nextState.projectId);
+        setMessage('');
+    }, [project]);
+
+    const clearFeedback = () => {
         setMessage('');
     };
 
+    const updateTitle = (value) => {
+        setTitle(value);
+        clearFeedback();
+    };
+
+    const updateDescription = (value) => {
+        setDescription(value);
+        clearFeedback();
+    };
+
+    const updateOptimizationType = (value) => {
+        setOptimizationType(value);
+        clearFeedback();
+    };
+
     const addVariable = () => {
-        if (numVariables >= 6) return;
+        if (numVariables >= 6) {
+            return;
+        }
 
-        const newValue = numVariables + 1;
-
-        setNumVariables(newValue);
-
-        setObjectiveCoefficients((current) =>
-            resizeCoefficients(current, newValue)
-        );
-
+        const nextCount = numVariables + 1;
+        setNumVariables(nextCount);
+        setObjectiveCoefficients((current) => resizeCoefficients(current, nextCount));
         setConstraints((current) =>
             current.map((constraint) => ({
                 ...constraint,
-                coefficients: resizeCoefficients(
-                    constraint.coefficients,
-                    newValue
-                ),
+                coefficients: resizeCoefficients(constraint.coefficients, nextCount),
             }))
         );
-
-        clearBackendState();
+        clearFeedback();
     };
 
     const removeVariable = () => {
-        if (numVariables <= 2) return;
+        if (numVariables <= 2) {
+            return;
+        }
 
-        const newValue = numVariables - 1;
-
-        setNumVariables(newValue);
-
-        setObjectiveCoefficients((current) =>
-            resizeCoefficients(current, newValue)
-        );
-
+        const nextCount = numVariables - 1;
+        setNumVariables(nextCount);
+        setObjectiveCoefficients((current) => resizeCoefficients(current, nextCount));
         setConstraints((current) =>
             current.map((constraint) => ({
                 ...constraint,
-                coefficients: resizeCoefficients(
-                    constraint.coefficients,
-                    newValue
-                ),
+                coefficients: resizeCoefficients(constraint.coefficients, nextCount),
             }))
         );
-
-        clearBackendState();
+        clearFeedback();
     };
 
     const updateObjectiveCoefficient = (index, value) => {
         setObjectiveCoefficients((current) =>
-            current.map((coefficient, coefficientIndex) =>
-                coefficientIndex === index ? value : coefficient
+            current.map((coefficient, currentIndex) =>
+                currentIndex === index ? value : coefficient
             )
         );
-
-        clearBackendState();
+        clearFeedback();
     };
 
     const updateConstraintCoefficient = (
@@ -118,144 +117,86 @@ export default function MathematicalModeling({ auth }) {
                 };
             })
         );
-
-        clearBackendState();
+        clearFeedback();
     };
 
     const updateConstraintField = (constraintIndex, field, value) => {
         setConstraints((current) =>
-            current.map((constraint, currentConstraintIndex) =>
-                currentConstraintIndex === constraintIndex
-                    ? {
-                          ...constraint,
-                          [field]: value,
-                      }
+            current.map((constraint, currentIndex) =>
+                currentIndex === constraintIndex
+                    ? { ...constraint, [field]: value }
                     : constraint
             )
         );
-
-        clearBackendState();
-    };
-
-    const updateOptimizationType = (type) => {
-        setOptimizationType(type);
-        clearBackendState();
-    };
-
-    const updateTitle = (value) => {
-        setTitle(value);
-        clearBackendState();
-    };
-
-    const updateDescription = (value) => {
-        setDescription(value);
-        clearBackendState();
+        clearFeedback();
     };
 
     const addConstraint = () => {
         setConstraints((current) => [
             ...current,
-            {
-                coefficients: createEmptyCoefficients(numVariables),
-                operator: '<=',
-                rhs_value: '',
-            },
+            createEmptyConstraint(numVariables),
         ]);
-
-        clearBackendState();
+        clearFeedback();
     };
 
     const removeConstraint = (constraintIndex) => {
-        if (constraints.length <= 1) return;
+        if (constraints.length <= 1) {
+            return;
+        }
 
         setConstraints((current) =>
             current.filter((_, currentIndex) => currentIndex !== constraintIndex)
         );
-
-        clearBackendState();
+        clearFeedback();
     };
 
-    const createProjectPayload = () => {
-        return {
-            title: title.trim() || 'Novo projeto',
-            description: description.trim() || null,
-            num_variables: numVariables,
-            num_constraints: constraints.length,
-            optimization_type: optimizationType,
-            objective_function: {
-                coefficients: objectiveCoefficients.map(parseInputNumber),
-            },
-            constraints: constraints.map((constraint) => ({
-                coefficients: constraint.coefficients.map(parseInputNumber),
-                operator: constraint.operator,
-                rhs_value: parseInputNumber(constraint.rhs_value),
-            })),
-        };
-    };
+    const createProjectPayload = () => ({
+        title: title.trim() || 'Novo projeto',
+        description: description.trim() || null,
+        num_variables: numVariables,
+        num_constraints: constraints.length,
+        optimization_type: optimizationType,
+        objective_function: {
+            coefficients: objectiveCoefficients.map(parseInputNumber),
+        },
+        constraints: constraints.map((constraint) => ({
+            coefficients: constraint.coefficients.map(parseInputNumber),
+            operator: constraint.operator,
+            rhs_value: parseInputNumber(constraint.rhs_value),
+        })),
+    });
 
     const saveProject = async () => {
         setIsSaving(true);
         setMessage('');
-        setResult(null);
 
         try {
-            const response = await window.axios.post(
-                '/projects',
-                createProjectPayload()
-            );
+            const payload = createProjectPayload();
+            const endpoint = projectId ? `/projects/me/${projectId}` : '/projects';
+            const method = projectId ? 'put' : 'post';
 
-            const createdProject =
+            const response = await window.axios[method](endpoint, payload);
+
+            const savedProject =
                 response.data?.data?.project ||
                 response.data?.project ||
                 response.data?.data;
 
-            const createdProjectId = createdProject?.id;
+            const savedProjectId = savedProject?.id ?? projectId;
 
-            if (!createdProjectId) {
+            if (!savedProjectId) {
                 setMessage(
-                    'Projeto criado, mas o ID não foi encontrado no retorno.'
+                    'Projeto salvo, mas o identificador não foi encontrado no retorno.'
                 );
-                return null;
-            }
-
-            setProjectId(createdProjectId);
-            setMessage('Projeto criado com sucesso.');
-
-            return createdProjectId;
-        } catch (error) {
-            setMessage(getErrorMessage(error));
-            return null;
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const solveProject = async (method) => {
-        setIsSolving(true);
-        setMessage('');
-        setResult(null);
-
-        try {
-            let currentProjectId = projectId;
-
-            if (!currentProjectId) {
-                currentProjectId = await saveProject();
-            }
-
-            if (!currentProjectId) {
                 return;
             }
 
-            const response = await window.axios.post(
-                `/projects/${currentProjectId}/solve/${method}`
-            );
-
-            setResult(response.data);
-            setMessage('Cálculo realizado com sucesso.');
+            setProjectId(savedProjectId);
+            router.visit(route('project-results.show', savedProjectId));
         } catch (error) {
             setMessage(getErrorMessage(error));
         } finally {
-            setIsSolving(false);
+            setIsSaving(false);
         }
     };
 
@@ -294,7 +235,8 @@ export default function MathematicalModeling({ auth }) {
 
                             <p className="mt-5 max-w-[46rem] text-lg leading-relaxed text-[#777777]">
                                 Defina a função objetivo e as restrições do
-                                problema para calcular a solução ótima.
+                                problema. Depois salve o projeto para seguir
+                                para a tela de resultados.
                             </p>
                         </div>
 
@@ -354,48 +296,18 @@ export default function MathematicalModeling({ auth }) {
                         </div>
                     )}
 
-                    {result && (
-                        <div className="mt-6 rounded-xl border border-[#d6bfa8] bg-[#faf7f3] p-5">
-                            <h2 className="font-inter text-xl font-black text-[#653018]">
-                                Resultado do cálculo
-                            </h2>
-
-                            <pre className="mt-4 max-h-[22rem] overflow-auto rounded-lg bg-white p-4 text-sm text-[#333333] shadow-inner">
-                                {JSON.stringify(result, null, 2)}
-                            </pre>
-                        </div>
-                    )}
-
-                    <div className="mt-8 flex flex-col items-center justify-end gap-4 lg:flex-row">
+                    <div className="mt-8 flex justify-center lg:justify-end">
                         <button
                             type="button"
                             onClick={saveProject}
-                            disabled={isSaving || isSolving}
-                            className="rounded-xl bg-[#eadccb] px-8 py-3 font-inter text-lg font-black text-[#653018] shadow-md transition hover:bg-[#dfcbb6] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {isSaving ? 'Criando projeto...' : 'Criar projeto'}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => solveProject('simplex')}
-                            disabled={isSaving || isSolving}
+                            disabled={isSaving}
                             className="rounded-xl bg-[#a77b5f] px-8 py-3 font-inter text-lg font-black text-white shadow-md transition hover:bg-[#8d6349] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            Resolver por
-                            <br />
-                            Programação Linear
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => solveProject('integer')}
-                            disabled={isSaving || isSolving}
-                            className="rounded-xl bg-[#a77b5f] px-8 py-3 font-inter text-lg font-black text-white shadow-md transition hover:bg-[#8d6349] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            Resolver por
-                            <br />
-                            Programação Inteira
+                            {isSaving
+                                ? 'Salvando...'
+                                : projectId
+                                  ? 'Atualizar e continuar'
+                                  : 'Salvar projeto e continuar'}
                         </button>
                     </div>
                 </section>
@@ -475,7 +387,7 @@ function ObjectiveFunctionCard({
                         disabled={!canRemoveVariable}
                         className="rounded-md bg-[#fffaf4] px-3 py-2 font-montserrat text-sm font-bold text-[#653018] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                        − Remover Variável
+                        - Remover Variável
                     </button>
 
                     <button
@@ -592,9 +504,7 @@ function ConstraintsCard({
                                         />
 
                                         <VariableLabel
-                                            variable={`x${
-                                                coefficientIndex + 1
-                                            }`}
+                                            variable={`x${coefficientIndex + 1}`}
                                         />
                                     </div>
                                 )
@@ -673,6 +583,64 @@ function VariableLabel({ variable }) {
     );
 }
 
+function buildInitialProjectState(project) {
+    const title = project?.title || 'Novo projeto';
+    const description = project?.description || '';
+    const optimizationType = project?.optimization_type?.value || project?.optimization_type || 'max';
+    const objectiveCoefficients = normalizeCoefficients(
+        project?.objective_function?.coefficients ||
+            project?.objectiveFunction?.coefficients ||
+            []
+    );
+    const numVariables = Math.max(
+        Number(project?.num_variables || objectiveCoefficients.length || 2),
+        2
+    );
+    const constraints = normalizeConstraints(
+        project?.constraints || [],
+        numVariables
+    );
+
+    return {
+        title,
+        description,
+        optimizationType,
+        numVariables,
+        objectiveCoefficients:
+            objectiveCoefficients.length > 0
+                ? resizeCoefficients(objectiveCoefficients, numVariables)
+                : createEmptyCoefficients(numVariables),
+        constraints:
+            constraints.length > 0
+                ? constraints
+                : [createEmptyConstraint(numVariables), createEmptyConstraint(numVariables)],
+        projectId: project?.id || null,
+    };
+}
+
+function createEmptyConstraint(variableCount) {
+    return {
+        coefficients: createEmptyCoefficients(variableCount),
+        operator: '<=',
+        rhs_value: '',
+    };
+}
+
+function normalizeConstraints(constraints, variableCount) {
+    if (!Array.isArray(constraints) || constraints.length === 0) {
+        return [];
+    }
+
+    return constraints.map((constraint) => ({
+        coefficients: resizeCoefficients(
+            normalizeCoefficients(constraint?.coefficients || []),
+            variableCount
+        ),
+        operator: constraint?.operator?.value || constraint?.operator || '<=',
+        rhs_value: constraint?.rhs_value ?? '',
+    }));
+}
+
 function createEmptyCoefficients(size) {
     return Array(size).fill('');
 }
@@ -681,6 +649,16 @@ function resizeCoefficients(currentCoefficients, newSize) {
     return Array.from(
         { length: newSize },
         (_, index) => currentCoefficients[index] ?? ''
+    );
+}
+
+function normalizeCoefficients(coefficients) {
+    if (!Array.isArray(coefficients)) {
+        return [];
+    }
+
+    return coefficients.map((value) =>
+        value === null || value === undefined ? '' : String(value)
     );
 }
 

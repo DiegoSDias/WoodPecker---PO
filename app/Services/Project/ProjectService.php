@@ -118,7 +118,7 @@ class ProjectService
         return $project->solutions()->create([
             'method_used' => $method,
             'z_value' => $this->extractObjectiveValue($result),
-            'variables_result' => $result['solution'],
+            'variables_result' => $result,
         ]);
     }
 
@@ -158,7 +158,19 @@ class ProjectService
         }
 
         if ($value === null) {
+            $value = data_get($result, 'solution.objective_value');
+        }
+
+        if ($value === null) {
+            $value = data_get($result, 'optimal_solution.objective_value');
+        }
+
+        if ($value === null) {
             $value = data_get($result, 'best_solution.objective_value');
+        }
+
+        if ($value === null) {
+            $value = data_get($result, 'primal_solution.objective_value');
         }
 
         return (float) ($value ?? 0.0);

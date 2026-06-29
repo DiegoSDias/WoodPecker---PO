@@ -25,6 +25,24 @@ class ProjectController extends Controller
     ) {
     }
 
+    public function show(Project $project)
+    {
+        try {
+            return $this->sendResponse(
+                ['project' => $this->projectService->load($project)],
+                'Projeto carregado com sucesso!',
+                Response::HTTP_OK
+            );
+
+        } catch (\Throwable $th) {
+            return $this->sendError(
+                ['detalhe' => $th->getMessage()],
+                'Erro ao carregar projeto',
+                Response::HTTP_NOT_FOUND
+            );
+        }
+    }
+
     public function store(StoreProjectRequest $request)
     {
         try {

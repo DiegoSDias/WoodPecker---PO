@@ -1,9 +1,19 @@
+import createPlotlyComponent from 'react-plotly.js/factory';
+import Plotly from 'plotly.js-dist-min';
 import { formatNumber } from './projectResultsUtils';
+
+const Plot = createPlotlyComponent(Plotly);
 
 const GRAPH_COLORS = {
     feasibleRegion: '#a77b5f',
+    feasibleRegionFill: 'rgba(167, 123, 95, 0.28)',
     objectiveLine: '#2dae5f',
     optimalPoint: '#2f6fca',
+    optimalSegment: '#2f6fca',
+    axis: '#653018',
+    grid: '#eadccb',
+    paper: '#ffffff',
+    plot: '#fbf6f1',
 };
 
 const RESTRICTION_COLORS = [
@@ -16,6 +26,8 @@ const RESTRICTION_COLORS = [
     '#a65f2b',
     '#3949ab',
 ];
+
+const EPSILON = 1e-6;
 
 export default function GraphicalResult({ data = {}, project }) {
     const variableCount = getVariableCount(project);
@@ -51,15 +63,6 @@ export default function GraphicalResult({ data = {}, project }) {
         );
     }
 
-    const vertices = Array.isArray(data?.vertices) ? data.vertices : [];
-
-    const feasibleRegion = Array.isArray(data?.feasible_region)
-        ? data.feasible_region
-        : [];
-
-    const optimalSolution = data?.optimal_solution || null;
-    const objectiveLine = data?.objective_line || null;
-
     if (!hasGraphicalData(data)) {
         return (
             <div className="max-w-[64rem] space-y-8">
@@ -74,25 +77,334 @@ export default function GraphicalResult({ data = {}, project }) {
         );
     }
 
+    const hasMultipleSolutions = isMultipleSolution(data);
+
     return (
         <div className="max-w-[64rem] space-y-8">
             <h1 className="font-inter text-[2.35rem] font-black leading-tight text-[#653018]">
                 Método Gráfico
             </h1>
 
+            {hasMultipleSolutions && <MultipleSolutionNotice />}
+
             <div className="rounded-2xl bg-white px-7 py-7 shadow-md">
-                <GraphCanvas
-                    feasibleRegion={feasibleRegion}
-                    vertices={vertices}
-                    optimalSolution={optimalSolution}
-                    objectiveLine={objectiveLine}
+                <InteractiveGraph
+                    data={data}
+                    project={project}
                     constraints={constraints}
+                    hasMultipleSolutions={hasMultipleSolutions}
                 />
             </div>
-
-            <GraphLegend constraints={constraints} />
         </div>
     );
+}
+
+function InteractiveGraph({ data, project, constraints, hasMultipleSolutions }) {
+    const vertices = normalizePointList(data?.vertices);
+    const feasibleRegion = normalizePointList(data?.feasible_region);
+    const regionPoints = feasibleRegion.length > 0 ? feasibleRegion : vertices;
+    const orderedRegionPoints = orderPolygonPoints(regionPoints);
+
+    const objectiveCoefficients = getObjectiveCoefficients(data, project);
+    const objectiveLine = data?.objective_line || null;
+    const objectiveSegment = buildObjectiveSegment(objectiveLine, project);
+
+    const optimalSolution = normalizeOptimalSolution(data?.optimal_solution);
+
+    const optimalValue = getOptimalObjectiveValue(
+        data,
+        objectiveLine,
+        objectiveCoefficients,
+        optimalSolution
+    );
+
+    const restrictionLines = buildRestrictionLines(constraints);
+
+    const optimalSegment = hasMultipleSolutions
+        ? buildOptimalSegment(
+              orderedRegionPoints,
+              objectiveCoefficients,
+              optimalValue
+          )
+        : null;
+
+    const allPoints = [
+        ...orderedRegionPoints,
+        ...restrictionLines.flatMap((line) => [line.start, line.end]),
+        objectiveSegment?.start,
+        objectiveSegment?.end,
+        optimalSolution,
+        optimalSegment?.start,
+        optimalSegment?.end,
+    ].filter(isValidPoint);
+
+    if (allPoints.length === 0) {
+        return (
+            <SmallEmptyText text="Não existem pontos suficientes para desenhar o gráfico." />
+        );
+    }
+
+    const axisMax = getAxisMax(allPoints);
+
+    const traces = buildPlotTraces({
+        regionPoints: orderedRegionPoints,
+        restrictionLines,
+        objectiveSegment,
+        optimalSolution,
+        optimalSegment,
+        constraints,
+        hasMultipleSolutions,
+    });
+
+    const layout = {
+        autosize: true,
+        height: 540,
+        paper_bgcolor: GRAPH_COLORS.paper,
+        plot_bgcolor: GRAPH_COLORS.plot,
+        dragmode: 'pan',
+        hovermode: 'closest',
+        margin: {
+            l: 70,
+            r: 35,
+            t: 30,
+            b: 90,
+        },
+        xaxis: {
+            title: {
+                text: 'x1',
+                font: {
+                    color: GRAPH_COLORS.axis,
+                    size: 18,
+                    family: 'Inter, Montserrat, sans-serif',
+                },
+            },
+            range: [0, axisMax],
+            zeroline: true,
+            zerolinecolor: GRAPH_COLORS.axis,
+            zerolinewidth: 3,
+            gridcolor: GRAPH_COLORS.grid,
+            linecolor: GRAPH_COLORS.axis,
+            linewidth: 3,
+            tickfont: {
+                color: GRAPH_COLORS.axis,
+                size: 12,
+                family: 'Montserrat, sans-serif',
+            },
+            fixedrange: false,
+        },
+        yaxis: {
+            title: {
+                text: 'x2',
+                font: {
+                    color: GRAPH_COLORS.axis,
+                    size: 18,
+                    family: 'Inter, Montserrat, sans-serif',
+                },
+            },
+            range: [0, axisMax],
+            zeroline: true,
+            zerolinecolor: GRAPH_COLORS.axis,
+            zerolinewidth: 3,
+            gridcolor: GRAPH_COLORS.grid,
+            linecolor: GRAPH_COLORS.axis,
+            linewidth: 3,
+            tickfont: {
+                color: GRAPH_COLORS.axis,
+                size: 12,
+                family: 'Montserrat, sans-serif',
+            },
+            scaleanchor: 'x',
+            scaleratio: 1,
+            fixedrange: false,
+        },
+        legend: {
+            orientation: 'h',
+            x: 0,
+            y: -0.24,
+            font: {
+                color: GRAPH_COLORS.axis,
+                size: 13,
+                family: 'Montserrat, sans-serif',
+            },
+        },
+        font: {
+            family: 'Montserrat, sans-serif',
+            color: GRAPH_COLORS.axis,
+        },
+    };
+
+    const config = {
+        responsive: true,
+        displaylogo: false,
+        scrollZoom: true,
+        modeBarButtonsToRemove: [
+            'select2d',
+            'lasso2d',
+            'autoScale2d',
+            'toggleSpikelines',
+        ],
+        toImageButtonOptions: {
+            format: 'png',
+            filename: 'grafico-metodo-grafico',
+            height: 720,
+            width: 1000,
+            scale: 2,
+        },
+    };
+
+    return (
+        <div>
+            <p className="mb-4 rounded-xl bg-[#fffaf4] px-5 py-3 text-sm font-semibold text-[#653018]">
+                Use o mouse para arrastar o gráfico, a roda para aproximar ou
+                afastar, e os botões no canto superior para resetar a
+                visualização.
+            </p>
+
+            <Plot
+                data={traces}
+                layout={layout}
+                config={config}
+                useResizeHandler
+                className="h-[540px] w-full"
+                style={{ width: '100%', height: '540px' }}
+            />
+        </div>
+    );
+}
+
+function buildPlotTraces({
+    regionPoints,
+    restrictionLines,
+    objectiveSegment,
+    optimalSolution,
+    optimalSegment,
+    constraints,
+    hasMultipleSolutions,
+}) {
+    const traces = [];
+
+    if (regionPoints.length > 0) {
+    const closedRegion = closePolygon(regionPoints);
+
+    traces.push({
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Área Viável',
+        x: closedRegion.map((point) => point.x),
+        y: closedRegion.map((point) => point.y),
+        fill: 'toself',
+        fillcolor: GRAPH_COLORS.feasibleRegionFill,
+        line: {
+            color: GRAPH_COLORS.feasibleRegion,
+            width: 3,
+        },
+        hovertemplate:
+            'Área viável<br>x1: %{x:.4f}<br>x2: %{y:.4f}<extra></extra>',
+        showlegend: false,
+    });
+
+    traces.push({
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Área Viável',
+        x: [0, 1],
+        y: [0, 1],
+        line: {
+            color: GRAPH_COLORS.feasibleRegion,
+            width: 10,
+        },
+        hoverinfo: 'skip',
+        visible: 'legendonly',
+    });
+    }
+
+    restrictionLines.forEach((line, index) => {
+        const color = getRestrictionColor(index);
+
+        traces.push({
+            type: 'scatter',
+            mode: 'lines',
+            name: `R${index + 1}`,
+            x: [line.start.x, line.end.x],
+            y: [line.start.y, line.end.y],
+            line: {
+                color,
+                width: 3,
+            },
+            hovertemplate: `${
+                constraints[index]
+                    ? formatConstraintLabel(constraints[index], index)
+                    : `R${index + 1}`
+            }<br>x1: %{x:.4f}<br>x2: %{y:.4f}<extra></extra>`,
+        });
+    });
+
+    if (objectiveSegment) {
+        traces.push({
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Função Objetivo (Z)',
+            x: [objectiveSegment.start.x, objectiveSegment.end.x],
+            y: [objectiveSegment.start.y, objectiveSegment.end.y],
+            line: {
+                color: GRAPH_COLORS.objectiveLine,
+                width: 3,
+            },
+            hovertemplate:
+                'Função objetivo<br>x1: %{x:.4f}<br>x2: %{y:.4f}<extra></extra>',
+        });
+    }
+
+    if (optimalSegment) {
+        traces.push({
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: 'Segmento Ótimo',
+            x: [optimalSegment.start.x, optimalSegment.end.x],
+            y: [optimalSegment.start.y, optimalSegment.end.y],
+            line: {
+                color: GRAPH_COLORS.optimalSegment,
+                width: 8,
+            },
+            marker: {
+                color: GRAPH_COLORS.optimalSegment,
+                size: 10,
+            },
+            hovertemplate:
+                'Segmento ótimo<br>x1: %{x:.4f}<br>x2: %{y:.4f}<extra></extra>',
+        });
+    }
+
+    if (optimalSolution) {
+        traces.push({
+            type: 'scatter',
+            mode: 'markers+text',
+            name: hasMultipleSolutions
+                ? 'Ponto ótimo representativo'
+                : 'Ponto Ótimo',
+            x: [optimalSolution.x],
+            y: [optimalSolution.y],
+            text: ['Ótimo'],
+            textposition: 'top right',
+            marker: {
+                color: GRAPH_COLORS.optimalPoint,
+                size: 16,
+                line: {
+                    color: 'rgba(47, 111, 202, 0.35)',
+                    width: 8,
+                },
+            },
+            textfont: {
+                color: GRAPH_COLORS.axis,
+                size: 15,
+                family: 'Inter, Montserrat, sans-serif',
+            },
+            hovertemplate:
+                'Ponto ótimo<br>x1: %{x:.4f}<br>x2: %{y:.4f}<extra></extra>',
+        });
+    }
+
+    return traces;
 }
 
 function MethodUnavailableCard({ variableCount }) {
@@ -115,6 +427,16 @@ function MethodUnavailableCard({ variableCount }) {
                 variável{variableCount === 1 ? '' : 'es'}. Para esse caso,
                 utilize os métodos Simplex, Dual ou Inteiro.
             </p>
+        </div>
+    );
+}
+
+function MultipleSolutionNotice() {
+    return (
+        <div className="rounded-xl border border-[#d6bfa8] bg-[#fffaf4] px-5 py-4 font-montserrat text-sm font-semibold leading-relaxed text-[#653018]">
+            Este problema possui solução múltipla. Quando identificado, o
+            segmento azul mostra o conjunto de pontos ótimos. O ponto azul indica
+            uma solução ótima representativa.
         </div>
     );
 }
@@ -153,333 +475,6 @@ function NoGraphicalResultCard() {
     );
 }
 
-function GraphCanvas({
-    feasibleRegion,
-    vertices,
-    optimalSolution,
-    objectiveLine,
-    constraints,
-}) {
-    const regionPoints =
-        feasibleRegion.length > 0 ? feasibleRegion : vertices || [];
-
-    const restrictionLines = buildRestrictionLines(constraints);
-    const objectiveSegment = buildObjectiveSegment(objectiveLine);
-
-    const normalizedOptimalSolution = normalizeOptimalSolution(optimalSolution);
-
-    const allPoints = [
-        ...regionPoints,
-        ...restrictionLines.flatMap((line) => [line.start, line.end]),
-        objectiveSegment?.start,
-        objectiveSegment?.end,
-        normalizedOptimalSolution,
-    ].filter(isValidPoint);
-
-    if (allPoints.length === 0) {
-        return (
-            <SmallEmptyText text="Não existem pontos suficientes para desenhar o gráfico." />
-        );
-    }
-
-    const maxX = Math.max(...allPoints.map((point) => Number(point.x)), 1);
-    const maxY = Math.max(...allPoints.map((point) => Number(point.y)), 1);
-    const axisMax = Math.max(1, Math.ceil(Math.max(maxX, maxY)));
-
-    const padding = 56;
-    const width = 760;
-    const height = 410;
-    const graphWidth = width - padding * 2;
-    const graphHeight = height - padding * 2;
-
-    function scaleX(value) {
-        return padding + (Number(value) / axisMax) * graphWidth;
-    }
-
-    function scaleY(value) {
-        return height - padding - (Number(value) / axisMax) * graphHeight;
-    }
-
-    const polygonPoints = regionPoints
-        .filter(isValidPoint)
-        .map((point) => `${scaleX(point.x)},${scaleY(point.y)}`)
-        .join(' ');
-
-    return (
-        <div className="mx-auto w-full max-w-[56rem]">
-            <div className="overflow-x-auto">
-                <svg
-                    viewBox={`0 0 ${width} ${height}`}
-                    className="h-auto w-full"
-                    role="img"
-                    aria-label="Gráfico do método gráfico"
-                >
-                    <rect
-                        x={padding}
-                        y={padding}
-                        width={graphWidth}
-                        height={graphHeight}
-                        fill="#fbf6f1"
-                        stroke="#a77b5f"
-                        strokeWidth="1"
-                    />
-
-                    {Array.from({ length: 6 }).map((_, index) => {
-                        const axisValue = (axisMax / 5) * index;
-
-                        return (
-                            <g key={index}>
-                                <line
-                                    x1={scaleX(axisValue)}
-                                    y1={padding}
-                                    x2={scaleX(axisValue)}
-                                    y2={height - padding}
-                                    stroke="#eadccb"
-                                    strokeWidth="1"
-                                />
-
-                                <line
-                                    x1={padding}
-                                    y1={scaleY(axisValue)}
-                                    x2={width - padding}
-                                    y2={scaleY(axisValue)}
-                                    stroke="#eadccb"
-                                    strokeWidth="1"
-                                />
-
-                                <text
-                                    x={scaleX(axisValue)}
-                                    y={height - padding + 24}
-                                    textAnchor="middle"
-                                    fontSize="12"
-                                    fill="#653018"
-                                >
-                                    {formatNumber(axisValue)}
-                                </text>
-
-                                <text
-                                    x={padding - 13}
-                                    y={scaleY(axisValue) + 4}
-                                    textAnchor="end"
-                                    fontSize="12"
-                                    fill="#653018"
-                                >
-                                    {formatNumber(axisValue)}
-                                </text>
-                            </g>
-                        );
-                    })}
-
-                    <line
-                        x1={padding}
-                        y1={height - padding}
-                        x2={width - padding}
-                        y2={height - padding}
-                        stroke="#653018"
-                        strokeWidth="3"
-                    />
-
-                    <line
-                        x1={padding}
-                        y1={padding}
-                        x2={padding}
-                        y2={height - padding}
-                        stroke="#653018"
-                        strokeWidth="3"
-                    />
-
-                    {polygonPoints && (
-                        <polygon
-                            points={polygonPoints}
-                            fill={GRAPH_COLORS.feasibleRegion}
-                            fillOpacity="0.28"
-                            stroke="#653018"
-                            strokeWidth="3"
-                        />
-                    )}
-
-                    {restrictionLines.map((line, index) => {
-                        const color = getRestrictionColor(index);
-                        const labelPoint = getLineLabelPoint(line, index);
-
-                        return (
-                            <g key={`restriction-${index}`}>
-                                <line
-                                    x1={scaleX(line.start.x)}
-                                    y1={scaleY(line.start.y)}
-                                    x2={scaleX(line.end.x)}
-                                    y2={scaleY(line.end.y)}
-                                    stroke={color}
-                                    strokeWidth="2.5"
-                                />
-
-                                <text
-                                    x={scaleX(labelPoint.x)}
-                                    y={scaleY(labelPoint.y)}
-                                    textAnchor="middle"
-                                    fontSize="13"
-                                    fontWeight="800"
-                                    fill={color}
-                                >
-                                    R{index + 1}
-                                </text>
-                            </g>
-                        );
-                    })}
-
-                    {objectiveSegment && (
-                        <g>
-                            <line
-                                x1={scaleX(objectiveSegment.start.x)}
-                                y1={scaleY(objectiveSegment.start.y)}
-                                x2={scaleX(objectiveSegment.end.x)}
-                                y2={scaleY(objectiveSegment.end.y)}
-                                stroke={GRAPH_COLORS.objectiveLine}
-                                strokeWidth="2.5"
-                            />
-
-                            <text
-                                x={scaleX(
-                                    getLineLabelPoint(objectiveSegment, 0).x
-                                )}
-                                y={
-                                    scaleY(
-                                        getLineLabelPoint(objectiveSegment, 0).y
-                                    ) + 18
-                                }
-                                textAnchor="middle"
-                                fontSize="13"
-                                fontWeight="800"
-                                fill={GRAPH_COLORS.objectiveLine}
-                            >
-                                Z
-                            </text>
-                        </g>
-                    )}
-
-                    {normalizedOptimalSolution && (
-                        <g>
-                            <circle
-                                cx={scaleX(normalizedOptimalSolution.x)}
-                                cy={scaleY(normalizedOptimalSolution.y)}
-                                r="9"
-                                fill={GRAPH_COLORS.optimalPoint}
-                            />
-
-                            <circle
-                                cx={scaleX(normalizedOptimalSolution.x)}
-                                cy={scaleY(normalizedOptimalSolution.y)}
-                                r="14"
-                                fill="none"
-                                stroke={GRAPH_COLORS.optimalPoint}
-                                strokeWidth="2"
-                                strokeOpacity="0.35"
-                            />
-
-                            <text
-                                x={scaleX(normalizedOptimalSolution.x) + 12}
-                                y={scaleY(normalizedOptimalSolution.y) - 12}
-                                fontSize="15"
-                                fontWeight="800"
-                                fill="#653018"
-                            >
-                                Ótimo
-                            </text>
-                        </g>
-                    )}
-
-                    <text
-                        x={width - padding}
-                        y={height - 12}
-                        textAnchor="end"
-                        fontSize="16"
-                        fontWeight="800"
-                        fill="#653018"
-                    >
-                        x1
-                    </text>
-
-                    <text
-                        x={padding - 18}
-                        y={padding - 10}
-                        textAnchor="end"
-                        fontSize="16"
-                        fontWeight="800"
-                        fill="#653018"
-                    >
-                        x2
-                    </text>
-                </svg>
-            </div>
-        </div>
-    );
-}
-
-function GraphLegend({ constraints }) {
-    return (
-        <div className="flex max-w-[64rem] flex-wrap items-center gap-7 rounded-lg bg-[#fffaf4] px-8 py-4 text-base font-bold text-[#653018] shadow-sm">
-            <LegendSquare
-                color={GRAPH_COLORS.feasibleRegion}
-                label="Área Viável"
-            />
-
-            <LegendLine
-                color={GRAPH_COLORS.objectiveLine}
-                label="Função Objetivo (Z)"
-            />
-
-            <LegendCircle
-                color={GRAPH_COLORS.optimalPoint}
-                label="Ponto Ótimo"
-            />
-
-            {constraints.map((_, index) => (
-                <LegendLine
-                    key={index}
-                    color={getRestrictionColor(index)}
-                    label={`R${index + 1}`}
-                />
-            ))}
-        </div>
-    );
-}
-
-function LegendSquare({ color, label }) {
-    return (
-        <div className="flex items-center gap-3">
-            <span
-                className="h-7 w-7 rounded"
-                style={{ backgroundColor: color }}
-            />
-            <span>{label}</span>
-        </div>
-    );
-}
-
-function LegendLine({ color, label }) {
-    return (
-        <div className="flex items-center gap-3">
-            <span
-                className="block h-[2px] w-10"
-                style={{ backgroundColor: color }}
-            />
-            <span>{label}</span>
-        </div>
-    );
-}
-
-function LegendCircle({ color, label }) {
-    return (
-        <div className="flex items-center gap-3">
-            <span
-                className="h-5 w-5 rounded-full"
-                style={{ backgroundColor: color }}
-            />
-            <span>{label}</span>
-        </div>
-    );
-}
-
 function getVariableCount(project) {
     const directCount = Number(project?.num_variables);
 
@@ -492,7 +487,10 @@ function getVariableCount(project) {
         project?.objectiveFunction?.coefficients ||
         project?.objective?.coefficients;
 
-    if (Array.isArray(objectiveCoefficients) && objectiveCoefficients.length > 0) {
+    if (
+        Array.isArray(objectiveCoefficients) &&
+        objectiveCoefficients.length > 0
+    ) {
         return objectiveCoefficients.length;
     }
 
@@ -508,6 +506,63 @@ function getVariableCount(project) {
     return 0;
 }
 
+function getObjectiveCoefficients(data, project) {
+    const coefficients =
+        data?.objective_line?.coefficients ||
+        project?.objective_function?.coefficients ||
+        project?.objectiveFunction?.coefficients ||
+        project?.objective?.coefficients ||
+        [];
+
+    if (!Array.isArray(coefficients) || coefficients.length < 2) {
+        return [];
+    }
+
+    return coefficients.slice(0, 2).map(Number);
+}
+
+function getOptimalObjectiveValue(
+    data,
+    objectiveLine,
+    objectiveCoefficients,
+    optimalSolution
+) {
+    const possibleValues = [
+        data?.optimal_value,
+        data?.objective_value,
+        data?.z_value,
+        data?.z,
+        data?.optimal_solution?.objective_value,
+        data?.optimal_solution?.optimal_value,
+        data?.optimal_solution?.z_value,
+        data?.optimal_solution?.z,
+        data?.optimal_solution?.value,
+        objectiveLine?.z,
+    ];
+
+    for (const value of possibleValues) {
+        const number = Number(value);
+
+        if (Number.isFinite(number)) {
+            return number;
+        }
+    }
+
+    if (
+        optimalSolution &&
+        Array.isArray(objectiveCoefficients) &&
+        objectiveCoefficients.length >= 2
+    ) {
+        const [a, b] = objectiveCoefficients;
+
+        if (Number.isFinite(a) && Number.isFinite(b)) {
+            return a * optimalSolution.x + b * optimalSolution.y;
+        }
+    }
+
+    return null;
+}
+
 function hasGraphicalData(data) {
     return Boolean(
         data &&
@@ -515,6 +570,30 @@ function hasGraphicalData(data) {
                 Array.isArray(data.feasible_region) ||
                 data.optimal_solution ||
                 data.objective_line)
+    );
+}
+
+function isMultipleSolution(data) {
+    const status =
+        data?.status ||
+        data?.optimal_solution?.status ||
+        data?.solution_status ||
+        data?.result_status ||
+        '';
+
+    const message =
+        data?.message ||
+        data?.optimal_solution?.message ||
+        data?.description ||
+        '';
+
+    const combined = normalizeText(`${status} ${message}`);
+
+    return (
+        combined.includes('multipla') ||
+        combined.includes('multiple') ||
+        combined.includes('infinitas solucoes') ||
+        combined.includes('solucoes infinitas')
     );
 }
 
@@ -547,7 +626,9 @@ function isInfeasibleResult(data) {
         const normalizedMessage = normalizeText(message);
 
         if (
-            normalizedMessage.includes('nao foi possivel encontrar vertices viaveis') ||
+            normalizedMessage.includes(
+                'nao foi possivel encontrar vertices viaveis'
+            ) ||
             normalizedMessage.includes('nao existe regiao viavel') ||
             normalizedMessage.includes('sistema inviavel') ||
             normalizedMessage.includes('sistema impossivel')
@@ -578,7 +659,9 @@ function normalizeBackendMessage(message) {
     const normalizedMessage = normalizeText(message);
 
     if (
-        normalizedMessage.includes('nao foi possivel encontrar vertices viaveis')
+        normalizedMessage.includes(
+            'nao foi possivel encontrar vertices viaveis'
+        )
     ) {
         return 'Não existe região viável para as restrições informadas. Portanto, não há ponto ótimo para exibir no método gráfico.';
     }
@@ -586,23 +669,89 @@ function normalizeBackendMessage(message) {
     return message;
 }
 
-function getRestrictionColor(index) {
-    return RESTRICTION_COLORS[index % RESTRICTION_COLORS.length];
+function normalizePointList(points) {
+    if (!Array.isArray(points)) {
+        return [];
+    }
+
+    return points.map(normalizePoint).filter(isValidPoint);
 }
 
-function getLineLabelPoint(line, index) {
-    const position = 0.48 + (index % 3) * 0.08;
-    const offsetY = index % 2 === 0 ? -0.45 : 0.45;
+function normalizePoint(point) {
+    if (!point) {
+        return null;
+    }
+
+    const x = point.x ?? point.x1 ?? point[0];
+    const y = point.y ?? point.x2 ?? point[1];
 
     return {
-        x:
-            Number(line.start.x) +
-            (Number(line.end.x) - Number(line.start.x)) * position,
-        y:
-            Number(line.start.y) +
-            (Number(line.end.y) - Number(line.start.y)) * position +
-            offsetY,
+        x: Number(x),
+        y: Number(y),
     };
+}
+
+function normalizeOptimalSolution(optimalSolution) {
+    if (!optimalSolution) {
+        return null;
+    }
+
+    if (isInfeasibleResult({ optimal_solution: optimalSolution })) {
+        return null;
+    }
+
+    return normalizePoint(optimalSolution);
+}
+
+function orderPolygonPoints(points) {
+    const normalizedPoints = normalizePointList(points);
+
+    if (normalizedPoints.length <= 2) {
+        return normalizedPoints;
+    }
+
+    const center = {
+        x:
+            normalizedPoints.reduce((sum, point) => sum + point.x, 0) /
+            normalizedPoints.length,
+        y:
+            normalizedPoints.reduce((sum, point) => sum + point.y, 0) /
+            normalizedPoints.length,
+    };
+
+    return [...normalizedPoints].sort((firstPoint, secondPoint) => {
+        const firstAngle = Math.atan2(
+            firstPoint.y - center.y,
+            firstPoint.x - center.x
+        );
+
+        const secondAngle = Math.atan2(
+            secondPoint.y - center.y,
+            secondPoint.x - center.x
+        );
+
+        return firstAngle - secondAngle;
+    });
+}
+
+function closePolygon(points) {
+    if (points.length === 0) {
+        return [];
+    }
+
+    return [...points, points[0]];
+}
+
+function getAxisMax(points) {
+    const maxX = Math.max(...points.map((point) => Number(point.x)), 1);
+    const maxY = Math.max(...points.map((point) => Number(point.y)), 1);
+    const max = Math.max(maxX, maxY);
+
+    return Math.max(1, Math.ceil(max * 1.15));
+}
+
+function getRestrictionColor(index) {
+    return RESTRICTION_COLORS[index % RESTRICTION_COLORS.length];
 }
 
 function buildRestrictionLines(constraints) {
@@ -670,8 +819,14 @@ function buildRestrictionLines(constraints) {
         .filter(Boolean);
 }
 
-function buildObjectiveSegment(objectiveLine) {
-    const coefficients = objectiveLine?.coefficients || [];
+function buildObjectiveSegment(objectiveLine, project) {
+    const coefficients =
+        objectiveLine?.coefficients ||
+        project?.objective_function?.coefficients ||
+        project?.objectiveFunction?.coefficients ||
+        project?.objective?.coefficients ||
+        [];
+
     const z = Number(objectiveLine?.z);
 
     if (coefficients.length < 2 || !Number.isFinite(z)) {
@@ -731,33 +886,128 @@ function buildObjectiveSegment(objectiveLine) {
     };
 }
 
-function normalizeOptimalSolution(optimalSolution) {
-    if (!optimalSolution) {
+function buildOptimalSegment(regionPoints, objectiveCoefficients, optimalValue) {
+    const points = normalizePointList(regionPoints);
+
+    if (
+        points.length < 2 ||
+        !Array.isArray(objectiveCoefficients) ||
+        objectiveCoefficients.length < 2 ||
+        !Number.isFinite(Number(optimalValue))
+    ) {
         return null;
     }
 
-    if (isInfeasibleResult({ optimal_solution: optimalSolution })) {
+    const [a, b] = objectiveCoefficients.map(Number);
+    const targetValue = Number(optimalValue);
+
+    if (!Number.isFinite(a) || !Number.isFinite(b)) {
         return null;
     }
 
-    const x =
-        optimalSolution.x ??
-        optimalSolution.x1 ??
-        optimalSolution.variables?.x1 ??
-        optimalSolution.values?.x1;
+    const intersectionPoints = [];
 
-    const y =
-        optimalSolution.y ??
-        optimalSolution.x2 ??
-        optimalSolution.variables?.x2 ??
-        optimalSolution.values?.x2;
+    for (let index = 0; index < points.length; index += 1) {
+        const currentPoint = points[index];
+        const nextPoint = points[(index + 1) % points.length];
 
-    const normalizedPoint = {
-        x: Number(x),
-        y: Number(y),
-    };
+        const currentValue = a * currentPoint.x + b * currentPoint.y;
+        const nextValue = a * nextPoint.x + b * nextPoint.y;
 
-    return isValidPoint(normalizedPoint) ? normalizedPoint : null;
+        const currentDelta = currentValue - targetValue;
+        const nextDelta = nextValue - targetValue;
+
+        if (Math.abs(currentDelta) <= EPSILON) {
+            intersectionPoints.push(currentPoint);
+        }
+
+        if (Math.abs(nextDelta) <= EPSILON) {
+            intersectionPoints.push(nextPoint);
+        }
+
+        if (currentDelta * nextDelta < 0) {
+            const ratio =
+                (targetValue - currentValue) / (nextValue - currentValue);
+
+            const intersection = {
+                x: currentPoint.x + ratio * (nextPoint.x - currentPoint.x),
+                y: currentPoint.y + ratio * (nextPoint.y - currentPoint.y),
+            };
+
+            if (isValidPoint(intersection)) {
+                intersectionPoints.push(intersection);
+            }
+        }
+    }
+
+    const uniquePoints = deduplicatePoints(intersectionPoints);
+
+    if (uniquePoints.length < 2) {
+        return null;
+    }
+
+    return getFarthestSegment(uniquePoints);
+}
+
+function deduplicatePoints(points) {
+    const uniquePoints = [];
+
+    points.forEach((point) => {
+        const alreadyExists = uniquePoints.some(
+            (existingPoint) =>
+                Math.abs(existingPoint.x - point.x) <= EPSILON &&
+                Math.abs(existingPoint.y - point.y) <= EPSILON
+        );
+
+        if (!alreadyExists) {
+            uniquePoints.push(point);
+        }
+    });
+
+    return uniquePoints;
+}
+
+function getFarthestSegment(points) {
+    let bestSegment = null;
+    let bestDistance = -1;
+
+    for (let firstIndex = 0; firstIndex < points.length; firstIndex += 1) {
+        for (
+            let secondIndex = firstIndex + 1;
+            secondIndex < points.length;
+            secondIndex += 1
+        ) {
+            const firstPoint = points[firstIndex];
+            const secondPoint = points[secondIndex];
+
+            const distance =
+                Math.pow(firstPoint.x - secondPoint.x, 2) +
+                Math.pow(firstPoint.y - secondPoint.y, 2);
+
+            if (distance > bestDistance) {
+                bestDistance = distance;
+                bestSegment = {
+                    start: firstPoint,
+                    end: secondPoint,
+                };
+            }
+        }
+    }
+
+    return bestSegment;
+}
+
+function formatConstraintLabel(constraint, index) {
+    const coefficients = Array.isArray(constraint?.coefficients)
+        ? constraint.coefficients
+        : [];
+
+    const x1 = formatNumber(Number(coefficients[0] || 0));
+    const x2 = formatNumber(Number(coefficients[1] || 0));
+    const operator = constraint?.operator || '<=';
+    const rhs = formatNumber(Number(constraint?.rhs_value || 0));
+
+    return `R${index + 1}: ${x1}x1 + ${x2}x2 ${operator} ${rhs}`;
 }
 
 function isValidPoint(point) {

@@ -307,9 +307,15 @@ export function formatNumber(value) {
         }).format(roundedInteger);
     }
 
+    const roundedValue = Math.round(number * 100) / 100;
+
+    if (Object.is(roundedValue, -0)) {
+        return '0';
+    }
+
     return new Intl.NumberFormat('pt-BR', {
-        maximumFractionDigits: 6,
-    }).format(number);
+        maximumFractionDigits: 2,
+    }).format(roundedValue);
 }
 
 export function formatDateTimeShort(value) {

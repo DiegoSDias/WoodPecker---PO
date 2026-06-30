@@ -410,13 +410,15 @@ function formatNumber(value) {
         return value;
     }
 
-    const roundedValue = Number(number.toFixed(4));
+    const roundedValue = Math.round(number * 100) / 100;
 
     if (Object.is(roundedValue, -0)) {
         return '0';
     }
 
-    return roundedValue.toString();
+    return new Intl.NumberFormat('pt-BR', {
+        maximumFractionDigits: 2,
+    }).format(roundedValue);
 }
 
 function getErrorMessage(error) {

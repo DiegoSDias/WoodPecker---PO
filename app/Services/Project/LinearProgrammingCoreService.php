@@ -476,7 +476,10 @@ class LinearProgrammingCoreService
 
         foreach ($constraints as $index => $constraint) {
             $dualVariableMap[$index] = [
-                'type' => $this->dualVariableType($constraint['operator']),
+                'type' => $this->dualVariableType(
+                    $constraint['operator'],
+                    $optimizationType
+                ),
                 'columns' => [],
             ];
 
@@ -714,11 +717,22 @@ class LinearProgrammingCoreService
         };
     }
 
-    private function dualVariableType(string $operator): string
+    private function dualVariableType(
+        string $operator,
+        string $optimizationType
+    ): string
     {
-        return match ($operator) {
-            '<=' => 'positive',
-            '>=' => 'negative',
+        return match ($optimizationType) {
+            'max' => match ($operator) {
+                '<=' => 'positive',
+                '>=' => 'negative',
+                default => 'free',
+            },
+            'min' => match ($operator) {
+                '<=' => 'negative',
+                '>=' => 'positive',
+                default => 'free',
+            },
             default => 'free',
         };
     }
@@ -814,6 +828,8 @@ class LinearProgrammingCoreService
                     'entering_variable' => $columnNames[$enteringColumn] ?? ('x' . ($enteringColumn + 1)),
                     'leaving_variable' => $leavingVariableName ?? ('x' . ($leavingVariableIndex + 1)),
                     'pivot' => $this->cleanValue($pivotValue),
+                    'pivot_row_index' => $leavingRow,
+                    'pivot_column_index' => $enteringColumn,
                     'tableau' => $this->cleanTableau($tableau),
                 ];
             }

@@ -81,6 +81,7 @@ export default function DualResult({ data, savedSolution, project }) {
                             <IterationBlock
                                 key={`dual-${iteration.iteration || index}-${index}`}
                                 iteration={iteration}
+                                nextIteration={dualIterations[index + 1]}
                                 project={dualProblem || primalProject}
                                 columnNames={dualColumnNames}
                             />
@@ -105,6 +106,7 @@ export default function DualResult({ data, savedSolution, project }) {
                             <IterationBlock
                                 key={`primal-${iteration.iteration || index}-${index}`}
                                 iteration={iteration}
+                                nextIteration={primalIterations[index + 1]}
                                 project={primalProject}
                                 columnNames={primalColumnNames}
                             />
@@ -306,7 +308,12 @@ function DualSymbolCard({ label, imageSrc, value, valueClassName }) {
     );
 }
 
-function IterationBlock({ iteration, project, columnNames }) {
+function IterationBlock({
+    iteration,
+    nextIteration,
+    project,
+    columnNames,
+}) {
     return (
         <div>
             <div className="mb-4 flex items-center gap-4">
@@ -321,6 +328,8 @@ function IterationBlock({ iteration, project, columnNames }) {
 
             {Array.isArray(iteration.tableau) && iteration.tableau.length > 0 ? (
                 <IterationTable
+                    iteration={iteration}
+                    nextIteration={nextIteration}
                     matrix={iteration.tableau}
                     project={project}
                     columnNames={columnNames}
@@ -332,7 +341,13 @@ function IterationBlock({ iteration, project, columnNames }) {
     );
 }
 
-function IterationTable({ matrix, project, columnNames }) {
+function IterationTable({
+    iteration,
+    nextIteration,
+    matrix,
+    project,
+    columnNames,
+}) {
     const displayRows = buildDisplayRows(matrix);
     const baseHeaders =
         Array.isArray(columnNames) && columnNames.length > 0
@@ -340,6 +355,8 @@ function IterationTable({ matrix, project, columnNames }) {
             : buildIterationHeaders(displayRows, project);
     const headers = buildVisibleHeaders(baseHeaders, displayRows);
     const rowLabels = buildIterationRowLabels(displayRows);
+    const pivotRowIndex = Number(nextIteration?.pivot_row_index);
+    const pivotColumnIndex = Number(nextIteration?.pivot_column_index);
 
     return (
         <div className="overflow-hidden rounded-xl bg-white shadow-sm">
@@ -378,7 +395,12 @@ function IterationTable({ matrix, project, columnNames }) {
                                 {headers.map((_, columnIndex) => (
                                     <td
                                         key={columnIndex}
-                                        className="px-5 py-4 text-base font-medium text-[#111111]"
+                                        className={getCellClassName(
+                                            rowIndex,
+                                            columnIndex,
+                                            pivotRowIndex,
+                                            pivotColumnIndex
+                                        )}
                                     >
                                         {formatNumber(row[columnIndex])}
                                     </td>
@@ -390,6 +412,26 @@ function IterationTable({ matrix, project, columnNames }) {
             </div>
         </div>
     );
+}
+
+function getCellClassName(
+    rowIndex,
+    columnIndex,
+    pivotRowIndex,
+    pivotColumnIndex
+) {
+    const isPivotCell =
+        Number.isInteger(pivotRowIndex) &&
+        Number.isInteger(pivotColumnIndex) &&
+        rowIndex === pivotRowIndex + 1 &&
+        columnIndex === pivotColumnIndex;
+
+    return [
+        'px-5 py-4 text-base font-medium text-[#111111]',
+        isPivotCell ? 'bg-[#f4d8b6] font-black text-[#653018]' : '',
+    ]
+        .filter(Boolean)
+        .join(' ');
 }
 
 function buildVisibleHeaders(headers, rows) {

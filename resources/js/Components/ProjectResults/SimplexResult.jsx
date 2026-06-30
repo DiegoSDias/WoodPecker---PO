@@ -25,6 +25,7 @@ export default function SimplexResult({ data, savedSolution, project }) {
                         <SimplexIteration
                             key={`${iteration.iteration || index}-${index}`}
                             iteration={iteration}
+                            nextIteration={iterations[index + 1]}
                             project={project}
                             columnNames={columnNames}
                         />
@@ -46,7 +47,12 @@ export default function SimplexResult({ data, savedSolution, project }) {
     );
 }
 
-function SimplexIteration({ iteration, project, columnNames }) {
+function SimplexIteration({
+    iteration,
+    nextIteration,
+    project,
+    columnNames,
+}) {
     const phaseLabel = iteration.phase_label || iteration.phase || '';
 
     return (
@@ -68,6 +74,8 @@ function SimplexIteration({ iteration, project, columnNames }) {
 
             {Array.isArray(iteration.tableau) && iteration.tableau.length > 0 ? (
                 <IterationTable
+                    iteration={iteration}
+                    nextIteration={nextIteration}
                     matrix={iteration.tableau}
                     project={project}
                     columnNames={columnNames}
@@ -111,7 +119,13 @@ function SimplexSummary({ data, objectiveValue, project }) {
     );
 }
 
-function IterationTable({ matrix, project, columnNames }) {
+function IterationTable({
+    iteration,
+    nextIteration,
+    matrix,
+    project,
+    columnNames,
+}) {
     const displayRows = buildDisplayRows(matrix);
     const baseHeaders =
         Array.isArray(columnNames) && columnNames.length > 0
@@ -119,6 +133,8 @@ function IterationTable({ matrix, project, columnNames }) {
             : buildIterationHeaders(displayRows, project);
     const headers = buildVisibleHeaders(baseHeaders, displayRows);
     const rowLabels = buildIterationRowLabels(displayRows);
+    const pivotRowIndex = Number(nextIteration?.pivot_row_index);
+    const pivotColumnIndex = Number(nextIteration?.pivot_column_index);
 
     return (
         <div className="overflow-hidden rounded-xl bg-white shadow-sm">
@@ -157,7 +173,12 @@ function IterationTable({ matrix, project, columnNames }) {
                                 {headers.map((_, columnIndex) => (
                                     <td
                                         key={columnIndex}
-                                        className="px-5 py-4 text-base font-medium text-[#111111]"
+                                        className={getCellClassName(
+                                            rowIndex,
+                                            columnIndex,
+                                            pivotRowIndex,
+                                            pivotColumnIndex
+                                        )}
                                     >
                                         {formatNumber(row[columnIndex])}
                                     </td>
@@ -169,6 +190,26 @@ function IterationTable({ matrix, project, columnNames }) {
             </div>
         </div>
     );
+}
+
+function getCellClassName(
+    rowIndex,
+    columnIndex,
+    pivotRowIndex,
+    pivotColumnIndex
+) {
+    const isPivotCell =
+        Number.isInteger(pivotRowIndex) &&
+        Number.isInteger(pivotColumnIndex) &&
+        rowIndex === pivotRowIndex + 1 &&
+        columnIndex === pivotColumnIndex;
+
+    return [
+        'px-5 py-4 text-base font-medium text-[#111111]',
+        isPivotCell ? 'bg-[#f4d8b6] font-black text-[#653018]' : '',
+    ]
+        .filter(Boolean)
+        .join(' ');
 }
 
 function buildVisibleHeaders(headers, rows) {

@@ -12,16 +12,19 @@ import {
 
 export default function DualResult({ data, savedSolution, project }) {
     const primalProject = data?.primal?.project || project;
+
     const primalColumnNames = Array.isArray(data?.primal?.solution?.column_names)
         ? data.primal.solution.column_names
         : Array.isArray(data?.primal?.column_names)
           ? data.primal.column_names
           : [];
+
     const dualColumnNames = Array.isArray(data?.dual?.solution?.column_names)
         ? data.dual.solution.column_names
         : Array.isArray(data?.dual?.column_names)
           ? data.dual.column_names
           : [];
+
     const dualProblem = buildReadableDualProblem(
         primalProject,
         data?.dual?.problem || null
@@ -81,6 +84,7 @@ export default function DualResult({ data, savedSolution, project }) {
                             <IterationBlock
                                 key={`dual-${iteration.iteration || index}-${index}`}
                                 iteration={iteration}
+                                previousIteration={dualIterations[index - 1]}
                                 nextIteration={dualIterations[index + 1]}
                                 project={dualProblem || primalProject}
                                 columnNames={dualColumnNames}
@@ -106,6 +110,7 @@ export default function DualResult({ data, savedSolution, project }) {
                             <IterationBlock
                                 key={`primal-${iteration.iteration || index}-${index}`}
                                 iteration={iteration}
+                                previousIteration={primalIterations[index - 1]}
                                 nextIteration={primalIterations[index + 1]}
                                 project={primalProject}
                                 columnNames={primalColumnNames}
@@ -141,6 +146,15 @@ export default function DualResult({ data, savedSolution, project }) {
                             valueClassName="text-[#ff6a21]"
                         />
                     </div>
+
+                    <p className="mx-auto mt-8 max-w-[58rem] text-center text-base leading-relaxed text-[#2b211b]">
+                        O problema dual produziu o mesmo valor ótimo do problema
+                        primal (Z* = {formatNumber(primalObjectiveValue)} e W* ={' '}
+                        {formatNumber(dualObjectiveValue)}), confirmando o
+                        Teorema da Dualidade Forte da Programação Linear. Isso
+                        indica que a solução encontrada é ótima e consistente
+                        para ambos os modelos.
+                    </p>
                 </div>
             </section>
         </div>
@@ -184,7 +198,7 @@ function DualProblemCard({
         <div className="overflow-hidden rounded-xl bg-white shadow-md">
             <div className="flex items-center gap-3 bg-[#eadccb] px-6 py-4">
                 <img
-                    src="/images/sum.png"
+                    src={isPrimal ? '/images/sum.png' : '/images/arrows.png'}
                     alt=""
                     className="h-6 w-6 object-contain"
                 />
@@ -262,6 +276,7 @@ function buildReadableDualProblem(primalProject, dualProblem) {
         primalProject?.optimization_type ||
         primalProject?.optimizationType?.value ||
         primalProject?.optimizationType;
+
     const dualOptimizationType = getOppositeOptimizationType(primalType);
     const dualOperator = primalType === 'max' ? '>=' : '<=';
 
@@ -310,6 +325,7 @@ function DualSymbolCard({ label, imageSrc, value, valueClassName }) {
 
 function IterationBlock({
     iteration,
+    previousIteration,
     nextIteration,
     project,
     columnNames,
@@ -329,6 +345,7 @@ function IterationBlock({
             {Array.isArray(iteration.tableau) && iteration.tableau.length > 0 ? (
                 <IterationTable
                     iteration={iteration}
+                    previousIteration={previousIteration}
                     nextIteration={nextIteration}
                     matrix={iteration.tableau}
                     project={project}
@@ -343,20 +360,51 @@ function IterationBlock({
 
 function IterationTable({
     iteration,
+    previousIteration,
     nextIteration,
     matrix,
     project,
     columnNames,
 }) {
     const displayRows = buildDisplayRows(matrix);
+
     const baseHeaders =
         Array.isArray(columnNames) && columnNames.length > 0
             ? columnNames
             : buildIterationHeaders(displayRows, project);
+
     const headers = buildVisibleHeaders(baseHeaders, displayRows);
     const rowLabels = buildIterationRowLabels(displayRows);
-    const pivotRowIndex = Number(nextIteration?.pivot_row_index);
-    const pivotColumnIndex = Number(nextIteration?.pivot_column_index);
+
+    const pivotRowIndex = getPivotIndex(
+        iteration?.pivot_row_index,
+        iteration?.pivot_row,
+        iteration?.pivotRowIndex,
+        iteration?.pivotRow,
+        nextIteration?.pivot_row_index,
+        nextIteration?.pivot_row,
+        nextIteration?.pivotRowIndex,
+        nextIteration?.pivotRow,
+        previousIteration?.pivot_row_index,
+        previousIteration?.pivot_row,
+        previousIteration?.pivotRowIndex,
+        previousIteration?.pivotRow
+    );
+
+    const pivotColumnIndex = getPivotIndex(
+        iteration?.pivot_column_index,
+        iteration?.pivot_column,
+        iteration?.pivotColumnIndex,
+        iteration?.pivotColumn,
+        nextIteration?.pivot_column_index,
+        nextIteration?.pivot_column,
+        nextIteration?.pivotColumnIndex,
+        nextIteration?.pivotColumn,
+        previousIteration?.pivot_column_index,
+        previousIteration?.pivot_column,
+        previousIteration?.pivotColumnIndex,
+        previousIteration?.pivotColumn
+    );
 
     return (
         <div className="overflow-hidden rounded-xl bg-white shadow-sm">
@@ -399,7 +447,8 @@ function IterationTable({
                                             rowIndex,
                                             columnIndex,
                                             pivotRowIndex,
-                                            pivotColumnIndex
+                                            pivotColumnIndex,
+                                            displayRows
                                         )}
                                     >
                                         {formatNumber(row[columnIndex])}
@@ -418,13 +467,23 @@ function getCellClassName(
     rowIndex,
     columnIndex,
     pivotRowIndex,
-    pivotColumnIndex
+    pivotColumnIndex,
+    rows
 ) {
+    const normalizedPivotRowIndex = normalizePivotRowIndex(
+        pivotRowIndex,
+        rows
+    );
+
+    const normalizedPivotColumnIndex = normalizePivotColumnIndex(
+        pivotColumnIndex
+    );
+
     const isPivotCell =
-        Number.isInteger(pivotRowIndex) &&
-        Number.isInteger(pivotColumnIndex) &&
-        rowIndex === pivotRowIndex + 1 &&
-        columnIndex === pivotColumnIndex;
+        Number.isInteger(normalizedPivotRowIndex) &&
+        Number.isInteger(normalizedPivotColumnIndex) &&
+        rowIndex === normalizedPivotRowIndex &&
+        columnIndex === normalizedPivotColumnIndex;
 
     return [
         'px-5 py-4 text-base font-medium text-[#111111]',
@@ -432,6 +491,49 @@ function getCellClassName(
     ]
         .filter(Boolean)
         .join(' ');
+}
+
+function getPivotIndex(...values) {
+    for (const value of values) {
+        const number = Number(value);
+
+        if (Number.isInteger(number) && number >= 0) {
+            return number;
+        }
+    }
+
+    return null;
+}
+
+function normalizePivotRowIndex(pivotRowIndex, rows) {
+    if (!Number.isInteger(pivotRowIndex)) {
+        return null;
+    }
+
+    const rowCount = Array.isArray(rows) ? rows.length : 0;
+
+    if (rowCount === 0) {
+        return pivotRowIndex;
+    }
+
+    /*
+     * Quando o backend envia pivot_row_index contando apenas as linhas das
+     * restrições, a linha Z não entra na contagem. Como a tabela exibida tem Z
+     * na primeira linha, somamos 1.
+     */
+    if (pivotRowIndex >= 0 && pivotRowIndex < rowCount - 1) {
+        return pivotRowIndex + 1;
+    }
+
+    return pivotRowIndex;
+}
+
+function normalizePivotColumnIndex(pivotColumnIndex) {
+    if (!Number.isInteger(pivotColumnIndex)) {
+        return null;
+    }
+
+    return pivotColumnIndex;
 }
 
 function buildVisibleHeaders(headers, rows) {

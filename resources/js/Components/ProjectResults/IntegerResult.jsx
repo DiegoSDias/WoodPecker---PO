@@ -174,6 +174,17 @@ export default function IntegerResult({
                         </table>
                     </div>
                 </div>
+
+                <p className="mt-8 max-w-[58rem] text-base leading-relaxed text-[#2b211b]">
+                    A solução relaxada do problema produziu um valor ótimo de{' '}
+                    {formatNumber(relaxedObjective)}, porém com variáveis
+                    fracionárias. Aplicando o método Branch & Bound, foi
+                    encontrada a melhor solução inteira viável, com valor
+                    objetivo {formatNumber(integerObjective)}, correspondente a{' '}
+                    {formatVariableInline(integerVariables) || '-'}. A diferença
+                    entre as soluções representa o custo da restrição de
+                    integralidade.
+                </p>
             </section>
         </div>
     );

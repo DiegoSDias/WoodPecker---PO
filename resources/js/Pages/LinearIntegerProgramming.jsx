@@ -692,10 +692,10 @@ function CoefficientGrid({
     onRemoveVariable = () => {},
 }) {
     return (
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(10.5rem,1fr))]">
             {coefficients.map((coefficient, index) => (
-                <div key={index} className="flex flex-col gap-2">
-                    <div className="flex items-center gap-4">
+                <div key={index} className="min-w-0 flex flex-col gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
                         {index > 0 && (
                             <span className="font-inter text-2xl font-bold text-[#653018]">
                                 +
@@ -754,16 +754,16 @@ function CoefficientInput({ value, onChange }) {
             value={value}
             placeholder="0"
             onChange={(event) => onChange(event.target.value)}
-            className="h-12 w-28 rounded-xl border border-[#d6bfa8] bg-[#fffaf4] text-center font-montserrat text-lg text-[#653018] shadow outline-none transition placeholder:text-[#c3c3c3] focus:ring-2 focus:ring-[#733615]"
+            className="h-12 w-24 rounded-xl border border-[#d6bfa8] bg-[#fffaf4] text-center font-montserrat text-lg text-[#653018] shadow outline-none transition placeholder:text-[#c3c3c3] focus:ring-2 focus:ring-[#733615]"
         />
     );
 }
 
 function VariableLabel({ variable }) {
     return (
-        <span className="font-inter text-xl font-black text-[#653018]">
+        <span className="whitespace-nowrap font-inter text-xl font-black text-[#653018]">
             {variable}
-            <span className="ml-1 align-bottom text-[0.65rem] font-semibold text-[#777777]">
+            <span className="ml-0.5 align-bottom text-[0.6rem] font-semibold text-[#777777]">
                 coef.
             </span>
         </span>

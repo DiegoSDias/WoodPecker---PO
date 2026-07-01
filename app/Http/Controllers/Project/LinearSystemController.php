@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Project;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SolveLinearSystemRequest;
-use App\Services\Project\LinearSystemService;
+use App\Services\Project\LinearSystem\LinearSystemService;
 
 class LinearSystemController extends Controller
 {

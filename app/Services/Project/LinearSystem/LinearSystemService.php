@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Services\Project;
+namespace App\Services\Project\LinearSystem;
 
 
 class LinearSystemService
 {
     private const EPSILON = 1e-10;
 
+    // Executa o metodo principal do service e devolve o resultado final.
     public function solve(array $data): array
     {
         $matrixA = $data['matrix_a'];
@@ -22,6 +23,7 @@ class LinearSystemService
         return $this->extractSolution($reducedMatrix);
     }
 
+    // Fun??o buildAugmentedMatrix respons?vel por executar esta etapa do service.
     private function buildAugmentedMatrix(
         array $matrixA,
         array $vectorB
@@ -38,6 +40,7 @@ class LinearSystemService
         return $augmented;
     }
 
+    // Fun??o gaussJordan respons?vel por executar esta etapa do service.
     private function gaussJordan(array $matrix): array
     {
         $rows = count($matrix);
@@ -97,6 +100,7 @@ class LinearSystemService
         return $matrix;
     }
 
+    // Fun??o swapRows respons?vel por executar esta etapa do service.
     private function swapRows(
         array &$matrix,
         int $rowA,
@@ -112,6 +116,7 @@ class LinearSystemService
         ];
     }
 
+    // Fun??o extractSolution respons?vel por executar esta etapa do service.
     private function extractSolution(array $matrix): array
     {
         if ($this->hasNoSolution($matrix)) {
@@ -135,6 +140,7 @@ class LinearSystemService
         ];
     }
 
+    // Fun??o hasNoSolution respons?vel por executar esta etapa do service.
     private function hasNoSolution(array $matrix): bool
     {
         foreach ($matrix as $row) {
@@ -162,6 +168,7 @@ class LinearSystemService
         return false;
     }
 
+    // Fun??o hasInfiniteSolutions respons?vel por executar esta etapa do service.
     private function hasInfiniteSolutions(array $matrix): bool
     {
         $variables = count($matrix[0]) - 1;
@@ -193,6 +200,7 @@ class LinearSystemService
         return $rank < $variables;
     }
 
+    // Fun??o getUniqueSolution respons?vel por executar esta etapa do service.
     private function getUniqueSolution(array $matrix): array
     {
         $solution = [];

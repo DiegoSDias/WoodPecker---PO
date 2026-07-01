@@ -5,12 +5,12 @@ namespace App\Http\Controllers\Project;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Project\StoreProjectRequest;
 use App\Models\Project;
-use App\Services\Project\BranchAndBoundService;
-use App\Services\Project\DualSimplexService;
-use App\Services\Project\GraphicalMethodService;
+use App\Services\Project\BranchAndBound\BranchAndBoundService;
+use App\Services\Project\DualSimplex\DualSimplexService;
+use App\Services\Project\GraphicMethod\GraphicalMethodService;
 use App\Services\Project\ProjectService;
-use App\Services\Project\SensitivityAnalysisService;
-use App\Services\Project\SimplexService;
+use App\Services\Project\SensitivityAnalysis\SensitivityAnalysisService;
+use App\Services\Project\Simplex\SimplexService;
 use Symfony\Component\HttpFoundation\Response;
 
 class ProjectController extends Controller
@@ -27,6 +27,7 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
+        dd('oi');
         try {
             return $this->sendResponse(
                 ['project' => $this->projectService->load($project)],
